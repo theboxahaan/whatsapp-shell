@@ -1,0 +1,27 @@
+syntax = "proto2";
+
+
+package proto;
+
+message HandshakeMessage {
+    optional ClientHello clientHello = 2;
+    optional ServerHello serverHello = 3;
+    optional ClientFinish clientFinish = 4;
+}
+
+message ServerHello {
+    optional bytes ephemeral = 1;
+    optional bytes static = 2;
+    optional bytes payload = 3;
+}
+
+message ClientHello {
+    optional bytes ephemeral = 1;
+    optional bytes static = 2;
+    optional bytes payload = 3;
+}
+
+message ClientFinish {
+    optional bytes static = 1;
+    optional bytes payload = 2;
+}
