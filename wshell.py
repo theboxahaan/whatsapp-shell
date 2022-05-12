@@ -18,24 +18,27 @@ class Client(object):
 	Class to represent a client instance
 	"""
 	websocket_url = "wss://web.whatsapp.com/ws/chat"
-	header=["User-Agent: Chrome/100.0.4896.127"]
+	header = ["User-Agent: Chrome/100.0.4896.127"]
 
 	KeyPair = namedtuple('KeyPair', ['public', 'private'])
 
 	def __init__(self, ws:websocket=None, debug:bool=False):
-		self.counter   = 0
-		self.prekey_id = 1
-		self.noise_info_iv = [be(secrets.token_bytes(16)) for _ in range(3)]
-		self.recovery_token = secrets.token_bytes(24)
-		self.cstatic_keys = X25519DH().generate_keypair()
+		self.counter         = 0
+		self.prekey_id       = 0
+		self.noise_info_iv   = [be(secrets.token_bytes(16)) for _ in range(3)]
+		self.recovery_token  = secrets.token_bytes(24)
+		self.cstatic_keys    = X25519DH().generate_keypair()
 		self.cephemeral_keys = X25519DH().generate_keypair() 
-		self.cident_keys = SimpleNamespace(public=None, private=None)
-		self.preshare_keys = SimpleNamespace(public=None, private=None)
+		self.cident_keys     = SimpleNamespace(public=None, private=None)
+		self.preshare_keys   = SimpleNamespace(public=None, private=None)
+		
+		self.meta = {"signal_last_spk_id": None}
+		self.signed_prekey_store = {}
 
 		self.shared_key = None
 
 		self.cident_keys.private = Ed25519PrivateKey.generate()
-		self.cident_keys.public = self.cident_keys.private.public_key()
+		self.cident_keys.public  = self.cident_keys.private.public_key()
 
 		self.reg_id = secrets.token_bytes(2)
 		
@@ -61,6 +64,24 @@ class Client(object):
 															format=serialization.PublicFormat.Raw
 															)
 		self.preshare_key_sig = self.cident_keys.private.sign(_pub_bytes)
+
+		# put the keypair into the prekey store
+		self.signed_prekey_store[self.prekey_id] = (self.preshare_keys, self.preshare_key_sig)
+
+	def _get_registration_info(self):
+		return (self.reg_id, self.cident_keys.public, self.cident_keys.private)
+
+
+	def _to_signal_curve_keypair(self):
+		return (b'5' + self.cident_keys.public, self.cident_keys.private)
+
+	def _gen_signed_key_pair(self):
+		pass
+		
+
+	def _rotate_signed_prekey(self):
+		self.prekey_id += 1
+		self.meta['signal_last_spk_id'] = self.prekey_id
 
 	def start(self):
 		self._connect()
