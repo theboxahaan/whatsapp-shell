@@ -21,23 +21,23 @@ class Client(object):
 	header = ["User-Agent: Chrome/100.0.4896.127"]
 
 	def __init__(self, ws:websocket=None, debug:bool=False):
-		self.counter         = 0
-		self.prekey_id       = 0
-		self.noise_info_iv   = [be(secrets.token_bytes(16)) for _ in range(3)]
-		self.recovery_token  = secrets.token_bytes(24)
-		self.cstatic_keys    = X25519DH().generate_keypair()
-		self.cephemeral_keys = X25519DH().generate_keypair() 
-		self.cident_keys     = SimpleNamespace(public=None, private=None)
-		self.preshare_keys   = SimpleNamespace(public=None, private=None)
+		self.counter        = 0
+		self.prekey_id      = 0
+		self.noise_info_iv  = [be(secrets.token_bytes(16)) for _ in range(3)]
+		self.recovery_token = secrets.token_bytes(24)
+		self.cstatic_key    = X25519DH().generate_keypair()
+		self.cephemeral_key = X25519DH().generate_keypair() 
+		self.cident_key     = SimpleNamespace(public=None, private=None)
+		self.prekey         = SimpleNamespace(public=None, private=None)
 		
 		self.meta = {"signal_last_spk_id": None}
 		self.signed_prekey_store = {}
-		self._id_to_signed_pre_key = {}
+		self._id_to_signed_prekey = {}
 
 		self.shared_key = None
 
-		self.cident_keys.private = Ed25519PrivateKey.generate()
-		self.cident_keys.public  = self.cident_keys.private.public_key()
+		self.cident_key.private = Ed25519PrivateKey.generate()
+		self.cident_key.public  = self.cident_key.private.public_key()
 
 		self.reg_id = secrets.token_bytes(2)
 		
@@ -53,25 +53,28 @@ class Client(object):
 		self.ws = websocket.WebSocket()
 		self.ws.connect(self.websocket_url, header=self.header)
 
-	def _gen_preshare_keys(self):
+	def _gen_signed_prekey(self):
 		"""
 		generate PreShareKeys and Sign the public key with the Identity Key
 		"""
-		self.preshare_keys.private = Ed25519PrivateKey.generate()
-		self.preshare_keys.public = self.preshare_keys.private.public_key()
-		_pub_bytes = self.preshare_keys.public.public_bytes(encoding=serialization.Encoding.Raw, 
+		self.prekey.private = Ed25519PrivateKey.generate()
+		self.prekey.public = self.prekey.private.public_key()
+		_pub_bytes = self.prekey.public.public_bytes(encoding=serialization.Encoding.Raw, 
 															format=serialization.PublicFormat.Raw
 															)
-		self.preshare_key_sig = self.cident_keys.private.sign(_pub_bytes)
+		self.prekey_sig = self.cident_key.private.sign(_pub_bytes)
 
 		# put the keypair into the prekey store
-		self.signed_prekey_store[self.prekey_id] = (self.preshare_keys, self.preshare_key_sig)
+		self.signed_prekey_store[self.prekey_id] = (self.prekey, self.prekey_sig)
 
 	def _get_registration_info(self):
-		return (self.reg_id, self.cident_keys.public, self.cident_keys.private)
+		"""
+		get registration info
+		"""
+		return (self.reg_id, self.cident_key.public, self.cident_key.private)
 
 	def _to_signal_curve_keypair(self):
-		return (b'5' + self.cident_keys.public, self.cident_keys.private)
+		return (b'5' + self.cident_key.public, self.cident_key.private)
 
 	def _gen_signed_key_pair(self):
 		pass
@@ -86,10 +89,10 @@ class Client(object):
 	def start(self):
 		self._connect()
 		self._rotate_signed_prekey()
-		self._gen_preshare_keys()
+		self._gen_signed_prekey()
 
 		chello = msg_pb2.ClientHello()
-		chello.ephemeral = self.cephemeral_keys.public.data
+		chello.ephemeral = self.cephemeral_key.public.data
 		chello_msg = b"\x57\x41\x06\x02\x00\x00\x24\x12\x22" + chello.SerializeToString()
 		self.ws.send_binary(chello_msg)
 
