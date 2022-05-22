@@ -73,6 +73,12 @@ class Client(object):
 		"""
 		return (self.reg_id, self.cident_key.public, self.cident_key.private)
 
+	def _get_signed_prekey(self):
+		"""
+		get prekey w/ signature
+		"""
+		return (self.prekey.public, self.prekey.private, self.prekey_sig)
+
 	def _to_signal_curve_keypair(self):
 		return (b'5' + self.cident_key.public, self.cident_key.private)
 
