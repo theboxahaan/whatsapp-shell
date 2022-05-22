@@ -97,6 +97,16 @@ class Client(object):
 		self._rotate_signed_prekey()
 		self._gen_signed_prekey()
 
+		print("\n****** CLIENT STATE BEG ******")
+		print(f"""PREKEY_ID      : {self.prekey_id}
+NOISE_INFO_IV  : {self.noise_info_iv}
+REGISTRATION_ID: {self.reg_id}
+STATIC_KEY     : {self.cstatic_key.public}; {self.cstatic_key.private}
+EPHEMERAL_KEY  : {self.cephemeral_key.public}; {self.cephemeral_key.private}
+IDENTITY_KEY   : {self.cident_key.public}; {self.cident_key.private}
+PREKEY         : {self.prekey.public}; {self.prekey.private}
+PREKEY_SIG     : {self.prekey_sig}
+****** CLIENT STATE END ******\n""")
 		chello = msg_pb2.ClientHello()
 		chello.ephemeral = self.cephemeral_key.public.data
 		chello_msg = b"\x57\x41\x06\x02\x00\x00\x24\x12\x22" + chello.SerializeToString()
