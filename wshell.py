@@ -15,12 +15,10 @@ from Crypto.Cipher import AES
 
 class Client(object):
 	"""
-	Class to represent a client instance
+	class to represent a client instance
 	"""
 	websocket_url = "wss://web.whatsapp.com/ws/chat"
 	header = ["User-Agent: Chrome/100.0.4896.127"]
-
-	KeyPair = namedtuple('KeyPair', ['public', 'private'])
 
 	def __init__(self, ws:websocket=None, debug:bool=False):
 		self.counter         = 0
@@ -34,6 +32,7 @@ class Client(object):
 		
 		self.meta = {"signal_last_spk_id": None}
 		self.signed_prekey_store = {}
+		self._id_to_signed_pre_key = {}
 
 		self.shared_key = None
 
@@ -49,14 +48,14 @@ class Client(object):
 
 	def _connect(self):
 		"""
-		Open a websocket connection
+		open a websocket connection
 		"""
 		self.ws = websocket.WebSocket()
 		self.ws.connect(self.websocket_url, header=self.header)
 
 	def _gen_preshare_keys(self):
 		"""
-		Generate PreShareKeys and Sign the public key with the Identity Key
+		generate PreShareKeys and Sign the public key with the Identity Key
 		"""
 		self.preshare_keys.private = Ed25519PrivateKey.generate()
 		self.preshare_keys.public = self.preshare_keys.private.public_key()
@@ -71,20 +70,22 @@ class Client(object):
 	def _get_registration_info(self):
 		return (self.reg_id, self.cident_keys.public, self.cident_keys.private)
 
-
 	def _to_signal_curve_keypair(self):
 		return (b'5' + self.cident_keys.public, self.cident_keys.private)
 
 	def _gen_signed_key_pair(self):
 		pass
-		
 
 	def _rotate_signed_prekey(self):
+		"""
+		set prekey id and set in meta dict
+		"""
 		self.prekey_id += 1
 		self.meta['signal_last_spk_id'] = self.prekey_id
 
 	def start(self):
 		self._connect()
+		self._rotate_signed_prekey()
 		self._gen_preshare_keys()
 
 		chello = msg_pb2.ClientHello()

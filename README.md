@@ -1,9 +1,8 @@
 # `whatsapp-shell`
 
 ```bash
-$ python shell_2.py
+$ python wshell.py
 ```
-
 ## Todo
 - [ ] Finish the `NOISE_XX_AES_128` handshake
   - [x] Reverse the `.proto` file for the structure of the protobuf
@@ -13,3 +12,9 @@ $ python shell_2.py
 - [ ] Get the QR
 - [ ] Setup the Ratchet
 - [ ] Retrieve Messages
+
+### Notes
+1. Client-Server Handshake
+	- Send Client Hello (43 bytes)
+	- Receive Server Hello (350 bytes)
+	- client Response (334 bytes)
