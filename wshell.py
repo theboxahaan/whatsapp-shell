@@ -13,6 +13,9 @@ from base64 import b64encode as be
 
 from Crypto.Cipher import AES
 
+unknown_P = [0x57, 0x41, 0x6, 0x2]
+
+
 class Client(object):
 	"""
 	class to represent a client instance
@@ -20,13 +23,15 @@ class Client(object):
 	websocket_url = "wss://web.whatsapp.com/ws/chat"
 	header = ["User-Agent: Chrome/100.0.4896.127"]
 
-	def __init__(self, ws:websocket=None, debug:bool=False):
+	def __init__(self, ws:websocket=None, prekey_id:int=None, noise_info_iv:list=None, recovery_token:bytes=None,\
+							static_private_bytes:bytes=None, ephemeral_private_bytes:bytes=None, ident_private_bytes:bytes=None,\
+							reg_id:bytes=None, debug:bool=False):
 		self.counter        = 0
-		self.prekey_id      = 0
-		self.noise_info_iv  = [be(secrets.token_bytes(16)) for _ in range(3)]
-		self.recovery_token = secrets.token_bytes(24)
-		self.cstatic_key    = X25519DH().generate_keypair()
-		self.cephemeral_key = X25519DH().generate_keypair() 
+		self.prekey_id      = prekey_id or 0
+		self.noise_info_iv  = noise_info_iv or [be(secrets.token_bytes(16)) for _ in range(3)]
+		self.recovery_token = recovery_token or secrets.token_bytes(24)
+		self.cstatic_key    = X25519DH().generate_keypair(privatekey=static_private_bytes)
+		self.cephemeral_key = X25519DH().generate_keypair(privatekey=ephemeral_private_bytes) 
 		self.cident_key     = SimpleNamespace(public=None, private=None)
 		self.prekey         = SimpleNamespace(public=None, private=None)
 		
@@ -35,11 +40,15 @@ class Client(object):
 		self._id_to_signed_prekey = {}
 
 		self.shared_key = None
-
-		self.cident_key.private = Ed25519PrivateKey.generate()
+		
+		if ident_private_bytes is not None:
+			self.cident_key.private = Ed25519PrivateKey.from_private_bytes(ident_private_bytes)
+		else:
+			self.cident_key.private = Ed25519PrivateKey.generate()
+		
 		self.cident_key.public  = self.cident_key.private.public_key()
 
-		self.reg_id = secrets.token_bytes(2)
+		self.reg_id = reg_id or secrets.token_bytes(2)
 		
 		if debug:
 			websocket.enableTrace(True)
@@ -53,11 +62,15 @@ class Client(object):
 		self.ws = websocket.WebSocket()
 		self.ws.connect(self.websocket_url, header=self.header)
 
-	def _gen_signed_prekey(self):
+	def _gen_signed_prekey(self, private_bytes:bytes=None):
 		"""
 		generate PreShareKeys and Sign the public key with the Identity Key
 		"""
-		self.prekey.private = Ed25519PrivateKey.generate()
+		if private_bytes is not None:
+			self.prekey.private = Ed25519PrivateKey.from_private_bytes(private_bytes)
+		else:
+			self.prekey.private = Ed25519PrivateKey.generate()
+		
 		self.prekey.public = self.prekey.private.public_key()
 		_pub_bytes = self.prekey.public.public_bytes(encoding=serialization.Encoding.Raw, 
 															format=serialization.PublicFormat.Raw
@@ -92,6 +105,14 @@ class Client(object):
 		self.prekey_id += 1
 		self.meta['signal_last_spk_id'] = self.prekey_id
 
+
+	def _process_server_hello(self, shello):
+		"""
+		process server hello on line  61035 a.k.a `function w(e, t, n)`
+		"""
+		print(f":. processing server hello> {shello}")
+		print(f":. ==== [({len(shello.ephemeral)}), ({len(shello.static)}), ({len(shello.payload)})] ====")
+
 	def start(self):
 		self._connect()
 		self._rotate_signed_prekey()
@@ -118,6 +139,8 @@ class Client(object):
 		shello.ParseFromString(recv_data.data[6:])
 
 		print(f'\n:. static:{len(shello.static)} ephemeral:{len(shello.ephemeral)} payload:{len(shello.payload)}')
+
+		self._process_server_hello(shello)
 
 if __name__ == "__main__":
 	client = Client(debug=True)
