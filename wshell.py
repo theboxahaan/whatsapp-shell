@@ -118,16 +118,18 @@ class Client(object):
 			keypair = self.cephemeral_key
 		return X25519DH().dh(keypair, pubkey)
 
-	def _mix_into_key(self, salt:bytes=None, key:bytes=None):
+	def _mix_into_key(self, salt:bytes=None, key_material:bytes=None):
 		"""
-		use hkdf with the salt and the shared_key to compute decryption key
-		and return two slices of [:32] and [32:]
+		update salt, cryptokey using an hkdf
 		"""
+		self.counter = 0
 		if salt is None:
 			salt = self.salt
 		hkdf = HKDF(algorithm=hashes.SHA256(), length=64, salt=salt, info=None)
-		key = hkdf.derive(key)
-		return (key[:32], key[32:])
+		key = hkdf.derive(key_material)
+		self.salt = key[:32]
+		self.cryptokey = AESGCM(key[32:]) 
+		print(f":. salt ~>{self.salt}\n:. cryptokey ~>{self.cryptokey}")
 
 	def _process_server_hello(self, shello):
 		"""
@@ -137,9 +139,8 @@ class Client(object):
 		print(f":. ==== [({len(shello.ephemeral), type(shello.ephemeral)}), ({len(shello.static), type(shello.static)}), ({len(shello.payload), type(shello.payload)})] ====")
 		shared_key = self._shared_secret(pubkey=PublicKey(shello.ephemeral))
 		print(f":. shared_secret is {shared_key}")
-		self.salt, _key = self._mix_into_key(key=shared_key)
-		print(f":. salt ~>{self.salt}\n:. _key[{len(_key)}] ~> {_key}")
-		aesgcm = AESGCM(_key)
+		self._mix_into_key(key_material=shared_key)
+
 
 	def start(self):
 		self._connect()
