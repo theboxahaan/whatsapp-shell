@@ -14,8 +14,6 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from Crypto.Cipher import AES
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-unknown_P = [0x57, 0x41, 0x6, 0x2]
-
 
 class Client(object):
 	"""
@@ -24,8 +22,9 @@ class Client(object):
 	websocket_url = "wss://web.whatsapp.com/ws/chat"
 	header = ["User-Agent: Chrome/100.0.4896.127"]
 
-	def __init__(self, ws:websocket=None, prekey_id:int=None, noise_info_iv:list=None, recovery_token:bytes=None,\
-							static_private_bytes:bytes=None, ephemeral_private_bytes:bytes=None, ident_private_bytes:bytes=None,\
+	def __init__(self, ws:websocket=None, prekey_id:int=None, noise_info_iv:list=None,\
+							recovery_token:bytes=None, static_private_bytes:bytes=None,\
+							ephemeral_private_bytes:bytes=None, ident_private_bytes:bytes=None,\
 							reg_id:bytes=None, debug:bool=False):
 		self.counter        = 0
 		self.cryptokey      = None
@@ -155,7 +154,6 @@ class Client(object):
 		_dec = self.cryptokey.decrypt(_gen_iv(self.counter), ct, self.hash)
 		self._authenticate(ct)
 		self.counter += 1
-
 		return _dec
 
 	def _process_server_hello(self, shello):
@@ -163,17 +161,19 @@ class Client(object):
 		process server hello on line  61035 a.k.a `function w(e, t, n)`
 		"""
 		print(f":. processing server hello> {shello}")
-		print(f":. ==== [({len(shello.ephemeral), type(shello.ephemeral)}), ({len(shello.static), type(shello.static)}), ({len(shello.payload), type(shello.payload)})] ====")
+		print(f":. ==== [({len(shello.ephemeral), type(shello.ephemeral)}),\
+		({len(shello.static), type(shello.static)}),\
+		({len(shello.payload),type(shello.payload)})] ====")
 		shared_key = self._shared_secret(pubkey=PublicKey(shello.ephemeral))
 		self._authenticate(shello.ephemeral)
 		print(f":. shared_secret is {shared_key}")
 		self._mix_into_key(key_material=shared_key)
 		_dec_static_key = self._decrypt(shello.static)
-		print(f"static-key ~> {_dec_static_key}")
+		print(f"static-key[{len(_dec_static_key)}] ~> {_dec_static_key}")
+		shared_key = self._shared_secret(pubkey=PublicKey(_dec_static_key))
+		self._mix_into_key(key_material=shared_key)
 		_dec_payload = self._decrypt(shello.payload)
 		print(f"dec_payload~>", _dec_payload)
-
-
 
 	def start(self):
 		
@@ -206,7 +206,8 @@ class Client(object):
 		recv_data = self.ws.recv_frame()
 		shello.ParseFromString(recv_data.data[6:])
 
-		print(f'\n:. static:{len(shello.static)} ephemeral:{len(shello.ephemeral)} payload:{len(shello.payload)}')
+		print(f'\n:. static:{len(shello.static)} ephemeral:{len(shello.ephemeral)}\
+		payload:{len(shello.payload)}')
 
 		self._process_server_hello(shello)
 
