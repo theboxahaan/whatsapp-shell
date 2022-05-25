@@ -28,6 +28,7 @@ class Client(object):
 							static_private_bytes:bytes=None, ephemeral_private_bytes:bytes=None, ident_private_bytes:bytes=None,\
 							reg_id:bytes=None, debug:bool=False):
 		self.counter        = 0
+		self.cryptokey      = None
 		self.prekey_id      = prekey_id or 0
 		self.noise_info_iv  = noise_info_iv or [be(secrets.token_bytes(16)) for _ in range(3)]
 		self.recovery_token = recovery_token or secrets.token_bytes(24)
@@ -40,6 +41,7 @@ class Client(object):
 		self.cident_key     = SimpleNamespace(public=None, private=None)
 		self.prekey         = SimpleNamespace(public=None, private=None)
 		self.salt           = b"Noise_XX_25519_AESGCM_SHA256\x00\x00\x00\x00"
+		self.hash           = b"Noise_XX_25519_AESGCM_SHA256\x00\x00\x00\x00"
 		self.meta = {"signal_last_spk_id": None}
 		self.signed_prekey_store = {}
 		self._id_to_signed_prekey = {}
@@ -131,6 +133,31 @@ class Client(object):
 		self.cryptokey = AESGCM(key[32:]) 
 		print(f":. salt ~>{self.salt}\n:. cryptokey ~>{self.cryptokey}")
 
+	def _authenticate(self, e:bytes=None):
+		"""
+		authentication function used for something :/
+		update self.hash
+		"""
+		_i = self.hash + e
+		digest = hashes.Hash(hashes.SHA256())
+		digest.update(_i)
+		self.hash = digest.finalize()
+		print(f"=========>{self.hash[:4]}")
+	
+	def _decrypt(self, ct:bytes=None):
+		"""
+		decrypt payload using cryptokey
+		"""
+		def _gen_iv(counter:int=None):
+			return b"\x00\x00\x00\x00\x00\x00\x00\x00" + counter.to_bytes(4, "big")
+		
+		print(f"++++++>>{self.hash[:4]}, {_gen_iv(self.counter)}")
+		_dec = self.cryptokey.decrypt(_gen_iv(self.counter), ct, self.hash)
+		self._authenticate(ct)
+		self.counter += 1
+
+		return _dec
+
 	def _process_server_hello(self, shello):
 		"""
 		process server hello on line  61035 a.k.a `function w(e, t, n)`
@@ -138,11 +165,20 @@ class Client(object):
 		print(f":. processing server hello> {shello}")
 		print(f":. ==== [({len(shello.ephemeral), type(shello.ephemeral)}), ({len(shello.static), type(shello.static)}), ({len(shello.payload), type(shello.payload)})] ====")
 		shared_key = self._shared_secret(pubkey=PublicKey(shello.ephemeral))
+		self._authenticate(shello.ephemeral)
 		print(f":. shared_secret is {shared_key}")
 		self._mix_into_key(key_material=shared_key)
+		_dec_static_key = self._decrypt(shello.static)
+		print(f"static-key ~> {_dec_static_key}")
+		_dec_payload = self._decrypt(shello.payload)
+		print(f"dec_payload~>", _dec_payload)
+
 
 
 	def start(self):
+		
+		self._authenticate(b"\x57\x41\x06\02")
+
 		self._connect()
 		self._rotate_signed_prekey()
 		self._gen_signed_prekey()
@@ -157,6 +193,9 @@ class Client(object):
 					\nPREKEY         : {self.prekey.public}; {self.prekey.private}\
 					\nPREKEY_SIG     : {self.prekey_sig}\
 					\n****** CLIENT STATE END ******\n")
+
+		self._authenticate(self.cephemeral_key.public.data)
+		print(f"the current hash is ~> {self.hash}")
 		chello = msg_pb2.ClientHello()
 		chello.ephemeral = self.cephemeral_key.public.data
 		chello_msg = b"\x57\x41\x06\x02\x00\x00\x24\x12\x22" + chello.SerializeToString()
