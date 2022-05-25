@@ -4,14 +4,15 @@ import rel
 import msg_pb2
 import secrets
 from collections import namedtuple
-from dissononce.dh.x25519.x25519 import X25519DH
-
+from dissononce.dh.x25519.x25519 import X25519DH, PublicKey, PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives import serialization
 from types import SimpleNamespace
 from base64 import b64encode as be
-
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from Crypto.Cipher import AES
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 unknown_P = [0x57, 0x41, 0x6, 0x2]
 
@@ -30,11 +31,15 @@ class Client(object):
 		self.prekey_id      = prekey_id or 0
 		self.noise_info_iv  = noise_info_iv or [be(secrets.token_bytes(16)) for _ in range(3)]
 		self.recovery_token = recovery_token or secrets.token_bytes(24)
+		if static_private_bytes is not None:
+			static_private_bytes = PrivateKey(static_private_bytes)
 		self.cstatic_key    = X25519DH().generate_keypair(privatekey=static_private_bytes)
+		if ephemeral_private_bytes is not None:
+			ephemeral_private_bytes = PrivateKey(ephemeral_private_bytes)
 		self.cephemeral_key = X25519DH().generate_keypair(privatekey=ephemeral_private_bytes) 
 		self.cident_key     = SimpleNamespace(public=None, private=None)
 		self.prekey         = SimpleNamespace(public=None, private=None)
-		
+		self.salt           = b"Noise_XX_25519_AESGCM_SHA256\x00\x00\x00\x00"
 		self.meta = {"signal_last_spk_id": None}
 		self.signed_prekey_store = {}
 		self._id_to_signed_prekey = {}
@@ -105,13 +110,36 @@ class Client(object):
 		self.prekey_id += 1
 		self.meta['signal_last_spk_id'] = self.prekey_id
 
+	def _shared_secret(self, keypair=None, pubkey=None):
+		"""
+		sharedSecret function on Line#35247
+		"""
+		if keypair is None:
+			keypair = self.cephemeral_key
+		return X25519DH().dh(keypair, pubkey)
+
+	def _mix_into_key(self, salt:bytes=None, key:bytes=None):
+		"""
+		use hkdf with the salt and the shared_key to compute decryption key
+		and return two slices of [:32] and [32:]
+		"""
+		if salt is None:
+			salt = self.salt
+		hkdf = HKDF(algorithm=hashes.SHA256(), length=64, salt=salt, info=None)
+		key = hkdf.derive(key)
+		return (key[:32], key[32:])
 
 	def _process_server_hello(self, shello):
 		"""
 		process server hello on line  61035 a.k.a `function w(e, t, n)`
 		"""
 		print(f":. processing server hello> {shello}")
-		print(f":. ==== [({len(shello.ephemeral)}), ({len(shello.static)}), ({len(shello.payload)})] ====")
+		print(f":. ==== [({len(shello.ephemeral), type(shello.ephemeral)}), ({len(shello.static), type(shello.static)}), ({len(shello.payload), type(shello.payload)})] ====")
+		shared_key = self._shared_secret(pubkey=PublicKey(shello.ephemeral))
+		print(f":. shared_secret is {shared_key}")
+		self.salt, _key = self._mix_into_key(key=shared_key)
+		print(f":. salt ~>{self.salt}\n:. _key[{len(_key)}] ~> {_key}")
+		aesgcm = AESGCM(_key)
 
 	def start(self):
 		self._connect()
