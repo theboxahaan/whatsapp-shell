@@ -172,6 +172,7 @@ class Client(object):
 			"""
 			convert a counter int into a 96 bit vector but strangely only the last 4 bytes
 			are ever used
+			#TODO check what happens when counter > 4 bytes 
 			"""
 			return b"\x00\x00\x00\x00\x00\x00\x00\x00" + counter.to_bytes(4, "big")
 		
