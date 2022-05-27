@@ -127,7 +127,7 @@ class Client(object):
 	def _shared_secret(self, keypair=None, pubkey=None):
 		"""
 		sharedSecret function on Line#35247
-		update the shared_secret key by mixing the ephemeral keypair with the pubkey
+		update the self.shared_secret key by mixing the ephemeral keypair with the pubkey
 		"""
 		if keypair is None:
 			keypair = self.cephemeral_key
@@ -137,7 +137,7 @@ class Client(object):
 
 	def _mix_into_key(self, salt:bytes=None, key_material:bytes=None):
 		"""
-		update salt, cryptokey using an hkdf
+		update self.salt, self.cryptokey using an hkdf
 		"""
 		self.counter = 0
 		if salt is None:
