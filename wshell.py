@@ -5,11 +5,34 @@ from types import SimpleNamespace
 from base64 import b64encode as be
 from base64 import b64decode as bd
 from dissononce.dh.x25519.x25519 import X25519DH, PublicKey, PrivateKey
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+#TODO s
+# Rename to match JS client
+# - msg_pb2.ClientPayload
+# - msg_pb2.ClientPayload.regData
+# migrate some stuff to `utils.py` 
+
+def get_Ed25519Key_bytes(key):
+	if isinstance(key, Ed25519PublicKey):
+		_tmp = key.public_bytes(
+						encoding=serialization.Encoding.Raw,
+						format=serialization.PublicFormat.Raw
+					)
+	elif isinstance(key, Ed25519PrivateKey):
+		_tmp = key.private_bytes(
+						encoding=serialization.Encoding.Raw,
+						format=serialization.PrivateFormat.Raw,
+						encryption_algorithm=serialization.NoEncryption()
+					)
+	else:
+		print(f":. incorrect type key > {type(key)}")
+		_tmp = None
+	
+	return _tmp 
 
 
 class Client(object):
@@ -111,7 +134,7 @@ class Client(object):
 		"""
 		get prekey w/ signature
 		"""
-		return (self.prekey.public, self.prekey.private, self.prekey_sig)
+		return (self.prekey_id, self.prekey.public, self.prekey.private, self.prekey_sig)
 
 
 	def _to_signal_curve_keypair(self):
@@ -192,7 +215,6 @@ class Client(object):
 			raise e
 
 
-
 	def _get_client_payload_for_registration(self, reg_info=None, key_info=None, t=None):
 		"""
 		reg_info: @arg - returned by get_registration_info()
@@ -207,6 +229,13 @@ class Client(object):
 		# - memoizeWithArgs("2.2218.8") basically maps the version no to its MD5 hash
 		# - _r = MD5("2.2218.8")
 		# - a.k.a as the build hash
+
+		if reg_info is None:
+			reg_info = self._get_registration_info()
+		if key_info is None:
+			key_info = self._get_signed_prekey()
+		if t is None:
+			t = {'passive':False, 'pull':False}
 
 		_digest = hashes.Hash(hashes.MD5())
 		_digest.update(b"2.2218.8")
@@ -231,8 +260,35 @@ class Client(object):
 		print(f"companion_proto > {_a}")
 
 		# build final protobuf
+		pyld = msg_pb2.ClientPayload()
+		pyld.pull = t['pull'] 
+		pyld.passive = t['passive']
+		pyld.connectReason = 1
+		pyld.connectType = 1
+		pyld.webInfo.webSubPlatform = 0
+		pyld.userAgent.platform = 14
+		pyld.userAgent.osVersion = "0.1"
+		pyld.userAgent.releaseChannel = 0
+		pyld.userAgent.osBuildNumber = "0.1"
+		pyld.userAgent.mnc = "000"
+		pyld.userAgent.mcc = "000"
+		pyld.userAgent.manufacturer = ""
+		pyld.userAgent.localeLanguageIso6391 = "en"
+		pyld.userAgent.localeCountryIso31661Alpha2 = "GB"
+		pyld.userAgent.device = "Desktop"
+		pyld.userAgent.appVersion.primary = 2
+		pyld.userAgent.appVersion.secondary = 2218
+		pyld.userAgent.appVersion.tertiary = 8
+		pyld.regData.buildHash = _r
+		pyld.regData.companionProps = _a
+		pyld.regData.eIdent = get_Ed25519Key_bytes(reg_info[1])
+		pyld.regData.eKeytype = b'\x05'
+		pyld.regData.eRegid = b"\x00\x00" + reg_info[0]
+		pyld.regData.eSkeyId = key_info[0].to_bytes(3, "big")
+		pyld.regData.eSkeySig = key_info[3]
+		pyld.regData.eSkeyVal = get_Ed25519Key_bytes(key_info[1])
 
-
+		return pyld.SerializeToString()
 
 	def _process_server_hello(self, shello):
 		"""
@@ -252,7 +308,9 @@ class Client(object):
 		# returned tuple by generator M() on Line #61095 is 
 		# (_get_registration_info, _get_signed_prekey, s_eph)
 		
-		self._get_client_payload_for_registration()
+		client_payload = self._get_client_payload_for_registration()
+		print("*"*20)
+		print(len(client_payload))
 
 
 	def client_dump(self):
