@@ -40,7 +40,8 @@ class Client(object):
 	"""
 	websocket_url = "wss://web.whatsapp.com/ws/chat"
 	header = ["User-Agent: Chrome/100.0.4896.127"]
-	init_salt = b"Noise_XX_25519_AESGCM_SHA256\x00\x00\x00\x00"
+	INIT_SALT = b"Noise_XX_25519_AESGCM_SHA256\x00\x00\x00\x00"
+	WA_HEADER = b"\x57\x41\x06\02" 
 
 
 	def __init__(self, ws:websocket=None, prekey_id:int=None, noise_info_iv:list=None,\
@@ -57,8 +58,8 @@ class Client(object):
 		self.counter        = 0
 		self.cryptokey      = None
 		self.shared_key     = None
-		self.salt           = self.init_salt 
-		self.hash           = self.init_salt
+		self.salt           = self.INIT_SALT
+		self.hash           = self.INIT_SALT
 		self.prekey_id      = prekey_id or 0
 		self.noise_info_iv  = noise_info_iv or [be(secrets.token_bytes(16)) for _ in range(3)]
 		# recover_token set by refreshNoiseCredentials()
@@ -119,6 +120,21 @@ class Client(object):
 
 		# put the keypair into the prekey store
 		self.signed_prekey_store[self.prekey_id] = (self.prekey, self.prekey_sig)
+
+
+	def _send_frame(self, intro_bytes:bytes=None, payload:bytes=None):
+		"""
+		append intro bytes, sizeof `payload` (cast to 3 bytes) to the actual payload and send
+		via websocket
+		@arg intro_bytes: bytes to be appended
+		@arg payload    : payload to be sent
+		@return length  : total length of sent bytes
+		"""
+		if intro_bytes is None:
+			intro_bytes = b"" 
+		final_pyld = intro_bytes + len(payload).to_bytes(3, "big") + payload
+		self.ws.send_binary(final_pyld)
+		return len(final_pyld)
 
 
 	def _get_registration_info(self):
@@ -203,8 +219,6 @@ class Client(object):
 		encrypt plaintext `pt` using cryptokey
 		"""
 		try:
-			print(f'encrypt counter = {self._gen_iv(self.counter)}')
-			print(f'enc hash > {self.hash}')
 			_enc = self.cryptokey.encrypt(self._gen_iv(self.counter), pt, self.hash)
 			self._authenticate(_enc)
 			self.counter += 1
@@ -222,8 +236,6 @@ class Client(object):
 		@return: bytes - decrypted bytes
 		"""
 		try:
-			print(f'decrypt counter = {self.counter}')
-			print(f'dec hash > {self.hash}')
 			_dec = self.cryptokey.decrypt(self._gen_iv(self.counter), ct, self.hash)
 			self._authenticate(ct)
 			self.counter += 1
@@ -265,7 +277,6 @@ class Client(object):
 		_digest.update(b"2.2218.8")
 		_r = _digest.finalize()
 
-		print(f"output memoizeWithArgs > {_r}")
 
 		def _companion_prop_spec():
 			"""
@@ -281,7 +292,6 @@ class Client(object):
 			return spec.SerializeToString()
 
 		_a = _companion_prop_spec()
-		print(f"companion_proto > {_a}")
 
 		# build final protobuf
 		pyld = msg_pb2.ClientPayload()
@@ -325,7 +335,6 @@ class Client(object):
 		self._shared_secret(pubkey=PublicKey(_dec_static_key))
 		self._mix_into_key()
 		_dec_payload = self._decrypt(shello.payload)
-		print("decrypted payload length-", len(_dec_payload))
 		
 		# verifyChainCertificateWA6 Line #61025 skipped
 
@@ -333,9 +342,6 @@ class Client(object):
 		# (_get_registration_info, _get_signed_prekey, s_eph)
 		
 		client_payload = self._get_client_payload_for_registration()
-		print("*"*20)
-		print(len(client_payload))
-		# print(client_payload)
 
 		# Line #61105 waNoiseInfo.get()....staticKeyPair
 		# returns clients static keyPair
@@ -345,20 +351,15 @@ class Client(object):
 
 		# now encrypt client_payload
 		_enc_client_payload = self._encrypt(client_payload)
-	
-		print(f'sizes enc_pyld {len(_enc_client_payload)}; enc_key {len(_enc_static_key)}')
 
 		fin_msg = msg_pb2.HandshakeMessage()
 		fin_msg.clientFinish.static = _enc_static_key
 		fin_msg.clientFinish.payload = _enc_client_payload
-		# `sendFrame(e)` on Line #11320 prepends 3 bytes to the payload
-		#TODO write  send_frame() equivalent
-		self.ws.send_binary(b"\x00\x01\x4b" + fin_msg.SerializeToString())
-		print(f'sent msg of size > {len(fin_msg.SerializeToString())}')
+		_l = self._send_frame(payload=fin_msg.SerializeToString())
+		print(f':. sent client finish message of size > {_l}')
 
 		srv_resp = self.ws.recv_frame()
-		print(f'received data > {len(srv_resp.data)}')
-
+		print(f':. received server data > {len(srv_resp.data)}')
 
 
 	def client_dump(self):
@@ -367,13 +368,12 @@ class Client(object):
 		"""
 		return f"\n****** CLIENT STATE BEG ******\
 					\nprekey_id      : {self.prekey_id}\
-					\nnoise_info_iv  : {self.noise_info_iv}\
 					\ncounter        : {self.counter}\
 					\ncryptokey      : {self.cryptokey}\
 					\nregistration_id: {self.reg_id}\
 					\nshared_key     : {self.shared_key}\
 					\nsalt           : {self.salt}\
-					\nhash           : {self.hash}\
+					\nhash           : {self.hash[:6]}...\
 					\nstatic_key     : {self.cstatic_key.public.data[:4]}...; \
 {self.cstatic_key.private.data[:4]}...\
 					\nephemeral_key  : {self.cephemeral_key.public.data[:4]}...;\
@@ -383,7 +383,7 @@ class Client(object):
 
 	def start(self):
 		
-		self._authenticate(b"\x57\x41\x06\02")
+		self._authenticate(self.WA_HEADER)
 
 		self._connect()
 		self._rotate_signed_prekey()
@@ -394,14 +394,15 @@ class Client(object):
 		self._authenticate(self.cephemeral_key.public.data)
 		chello = msg_pb2.HandshakeMessage()
 		chello.clientHello.ephemeral = self.cephemeral_key.public.data
-		chello_msg = b"\x57\x41\x06\x02\x00\x00\x24" + chello.SerializeToString()
-		print(f'sizeof chello_msg > {len(chello_msg)}')
-		self.ws.send_binary(chello_msg)
+		_l = self._send_frame(intro_bytes=self.WA_HEADER, payload=chello.SerializeToString())
+		print(f':. sent client hello msg of size > {_l}')
 
 		# receive server hello
 		shello = msg_pb2.HandshakeMessage()
 		recv_data = self.ws.recv_frame()
-		print(f'sizeof shello_msg > {len(recv_data.data)}')
+		print(f':. recvd server hello msg > {len(recv_data.data)}')
+
+		# parse from the 4th byte as first 3 bytes encode the length
 		shello.ParseFromString(recv_data.data[3:])
 		self._process_server_hello(shello.serverHello)
 	
