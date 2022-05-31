@@ -203,8 +203,10 @@ class Client(object):
 		encrypt plaintext `pt` using cryptokey
 		"""
 		try:
+			print(f'encrypt counter = {self._gen_iv(self.counter)}')
+			print(f'enc hash > {self.hash}')
 			_enc = self.cryptokey.encrypt(self._gen_iv(self.counter), pt, self.hash)
-			self._authenticate(pt)
+			self._authenticate(_enc)
 			self.counter += 1
 			return _enc
 		except Exception as e:
@@ -220,6 +222,8 @@ class Client(object):
 		@return: bytes - decrypted bytes
 		"""
 		try:
+			print(f'decrypt counter = {self.counter}')
+			print(f'dec hash > {self.hash}')
 			_dec = self.cryptokey.decrypt(self._gen_iv(self.counter), ct, self.hash)
 			self._authenticate(ct)
 			self.counter += 1
@@ -314,7 +318,7 @@ class Client(object):
 		"""
 		process server hello on line  61035 a.k.a `function w(e, t, n)`
 		"""
-		shared_key = self._shared_secret(pubkey=PublicKey(shello.ephemeral))
+		self._shared_secret(pubkey=PublicKey(shello.ephemeral))
 		self._authenticate(shello.ephemeral)
 		self._mix_into_key()
 		_dec_static_key = self._decrypt(shello.static)
@@ -336,7 +340,7 @@ class Client(object):
 		# Line #61105 waNoiseInfo.get()....staticKeyPair
 		# returns clients static keyPair
 		_enc_static_key = self._encrypt(self.cstatic_key.public.data)
-		self._shared_secret(pubkey=PublicKey(shello.ephemeral), keypair=self.cstatic_key)
+		self._shared_secret(keypair=self.cstatic_key, pubkey=PublicKey(shello.ephemeral)) 
 		self._mix_into_key()
 
 		# now encrypt client_payload
@@ -347,12 +351,13 @@ class Client(object):
 		fin_msg = msg_pb2.HandshakeMessage()
 		fin_msg.clientFinish.static = _enc_static_key
 		fin_msg.clientFinish.payload = _enc_client_payload
-		self.ws.send_binary(fin_msg.SerializeToString())
+		# `sendFrame(e)` on Line #11320 prepends 3 bytes to the payload
+		#TODO write  send_frame() equivalent
+		self.ws.send_binary(b"\x00\x01\x4b" + fin_msg.SerializeToString())
 		print(f'sent msg of size > {len(fin_msg.SerializeToString())}')
 
 		srv_resp = self.ws.recv_frame()
-		print(srv_resp)
-		# print(f'received data > {len(srv_resp)}')
+		print(f'received data > {len(srv_resp.data)}')
 
 
 
@@ -387,16 +392,18 @@ class Client(object):
 		print(self.client_dump())
 
 		self._authenticate(self.cephemeral_key.public.data)
-		chello = msg_pb2.ClientHello()
-		chello.ephemeral = self.cephemeral_key.public.data
-		chello_msg = b"\x57\x41\x06\x02\x00\x00\x24\x12\x22" + chello.SerializeToString()
+		chello = msg_pb2.HandshakeMessage()
+		chello.clientHello.ephemeral = self.cephemeral_key.public.data
+		chello_msg = b"\x57\x41\x06\x02\x00\x00\x24" + chello.SerializeToString()
+		print(f'sizeof chello_msg > {len(chello_msg)}')
 		self.ws.send_binary(chello_msg)
 
 		# receive server hello
-		shello = msg_pb2.ServerHello()
+		shello = msg_pb2.HandshakeMessage()
 		recv_data = self.ws.recv_frame()
-		shello.ParseFromString(recv_data.data[6:])
-		self._process_server_hello(shello)
+		print(f'sizeof shello_msg > {len(recv_data.data)}')
+		shello.ParseFromString(recv_data.data[3:])
+		self._process_server_hello(shello.serverHello)
 	
 if __name__ == "__main__":
 	client = Client(debug=False)
