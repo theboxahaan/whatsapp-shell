@@ -61,6 +61,7 @@ class Client(object):
 		self.hash           = self.init_salt
 		self.prekey_id      = prekey_id or 0
 		self.noise_info_iv  = noise_info_iv or [be(secrets.token_bytes(16)) for _ in range(3)]
+		# recover_token set by refreshNoiseCredentials()
 		self.recovery_token = recovery_token or secrets.token_bytes(24)
 		self.reg_id         = reg_id or secrets.token_bytes(2)
 		self.ws             = ws
@@ -70,6 +71,7 @@ class Client(object):
 		self.prekey         = SimpleNamespace(public=None, private=None)
 		
 		if static_private_bytes is not None:
+			# set by refreshNoiseCredentials() Line #61186
 			static_private_bytes = PrivateKey(static_private_bytes)
 		self.cstatic_key    = X25519DH().generate_keypair(privatekey=static_private_bytes)
 		
@@ -187,22 +189,38 @@ class Client(object):
 		self.hash = digest.finalize()
 
 
+	def _gen_iv(self, counter:int=None):
+		"""
+		convert a counter int into a 96 bit vector but strangely only the last 4 bytes
+		are ever used
+		#TODO check what happens when counter > 4 bytes 
+		"""
+		return b"\x00\x00\x00\x00\x00\x00\x00\x00" + counter.to_bytes(4, "big")
+
+
+	def _encrypt(self, pt:bytes=None):
+		"""
+		encrypt plaintext `pt` using cryptokey
+		"""
+		try:
+			_enc = self.cryptokey.encrypt(self._gen_iv(self.counter), pt, self.hash)
+			self._authenticate(pt)
+			self.counter += 1
+			return _enc
+		except Exception as e:
+			print(f":. encryption failed {e}")
+			raise e
+
+
+
 	def _decrypt(self, ct:bytes=None):
 		"""
 		decrypt ciphertext `ct`  using cryptokey
 		@arg   : bytes - ct
 		@return: bytes - decrypted bytes
 		"""
-		def _gen_iv(counter:int=None):
-			"""
-			convert a counter int into a 96 bit vector but strangely only the last 4 bytes
-			are ever used
-			#TODO check what happens when counter > 4 bytes 
-			"""
-			return b"\x00\x00\x00\x00\x00\x00\x00\x00" + counter.to_bytes(4, "big")
-		
 		try:
-			_dec = self.cryptokey.decrypt(_gen_iv(self.counter), ct, self.hash)
+			_dec = self.cryptokey.decrypt(self._gen_iv(self.counter), ct, self.hash)
 			self._authenticate(ct)
 			self.counter += 1
 			return _dec
@@ -314,6 +332,27 @@ class Client(object):
 		print("*"*20)
 		print(len(client_payload))
 		# print(client_payload)
+
+		# Line #61105 waNoiseInfo.get()....staticKeyPair
+		# returns clients static keyPair
+		_enc_static_key = self._encrypt(self.cstatic_key.public.data)
+		self._shared_secret(pubkey=PublicKey(shello.ephemeral), keypair=self.cstatic_key)
+		self._mix_into_key()
+
+		# now encrypt client_payload
+		_enc_client_payload = self._encrypt(client_payload)
+	
+		print(f'sizes enc_pyld {len(_enc_client_payload)}; enc_key {len(_enc_static_key)}')
+
+		fin_msg = msg_pb2.HandshakeMessage()
+		fin_msg.clientFinish.static = _enc_static_key
+		fin_msg.clientFinish.payload = _enc_client_payload
+		self.ws.send_binary(fin_msg.SerializeToString())
+		print(f'sent msg of size > {len(fin_msg.SerializeToString())}')
+
+		srv_resp = self.ws.recv_frame()
+		print(srv_resp)
+		# print(f'received data > {len(srv_resp)}')
 
 
 
