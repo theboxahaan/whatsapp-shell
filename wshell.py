@@ -10,13 +10,9 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-#TODO s
-# Rename to match JS client
-# - msg_pb2.ClientPayload
-# - msg_pb2.ClientPayload.regData
-# migrate some stuff to `utils.py` 
-
 def get_Ed25519Key_bytes(key):
+	#TODO s
+	# migrate some stuff to `utils.py` 
 	if isinstance(key, Ed25519PublicKey):
 		_tmp = key.public_bytes(
 						encoding=serialization.Encoding.Raw,
@@ -216,7 +212,13 @@ class Client(object):
 
 
 	def _get_client_payload_for_registration(self, reg_info=None, key_info=None, t=None):
+		#TODO
+		# Rename to match JS client
+		# - msg_pb2.ClientPayload
+		# - msg_pb2.ClientPayload.regData
+		
 		"""
+		function defined at Line #60338
 		reg_info: @arg - returned by get_registration_info()
 		key_info: @arg - returned by get_signed_prekey()
 		t       : @arg - not exactly sure {passive: False, pull:False}
@@ -311,6 +313,8 @@ class Client(object):
 		client_payload = self._get_client_payload_for_registration()
 		print("*"*20)
 		print(len(client_payload))
+		# print(client_payload)
+
 
 
 	def client_dump(self):
