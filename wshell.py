@@ -203,9 +203,15 @@ class Client(object):
 		"""
 		# this is the b64encoded string returned by memoizeWithArgs("2.2218.8")
 		# on Line #60393
+		# UPDATE
+		# - memoizeWithArgs("2.2218.8") basically maps the version no to its MD5 hash
+		# - _r = MD5("2.2218.8")
+		# - a.k.a as the build hash
 
-		_r = "i5pRaMi5PerAs+GER3zp3A=="
-		_r = bd(_r)
+		_digest = hashes.Hash(hashes.MD5())
+		_digest.update(b"2.2218.8")
+		_r = _digest.finalize()
+
 		print(f"output memoizeWithArgs > {_r}")
 
 		def _companion_prop_spec():
