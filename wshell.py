@@ -1,9 +1,9 @@
 import websocket
 import msg_pb2
 import secrets
-from collections import namedtuple
 from types import SimpleNamespace
 from base64 import b64encode as be
+from base64 import b64decode as bd
 from dissononce.dh.x25519.x25519 import X25519DH, PublicKey, PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives import serialization, hashes
@@ -28,7 +28,13 @@ class Client(object):
 							recovery_token:bytes=None, static_private_bytes:bytes=None,\
 							ephemeral_private_bytes:bytes=None, ident_private_bytes:bytes=None,\
 							reg_id:bytes=None, debug:bool=False):
-
+		"""
+		counter   :@updatable
+		cryptokey :@updateable
+		shared_key:@updateable
+		salt      :@updateable
+		hash      :@updateable
+		"""
 		self.counter        = 0
 		self.cryptokey      = None
 		self.shared_key     = None
@@ -186,6 +192,40 @@ class Client(object):
 			raise e
 
 
+
+	def _get_client_payload_for_registration(self, reg_info=None, key_info=None, t=None):
+		"""
+		reg_info: @arg - returned by get_registration_info()
+		key_info: @arg - returned by get_signed_prekey()
+		t       : @arg - not exactly sure {passive: False, pull:False}
+		
+		payload : @return proto
+		"""
+		# this is the b64encoded string returned by memoizeWithArgs("2.2218.8")
+		# on Line #60393
+
+		_r = "i5pRaMi5PerAs+GER3zp3A=="
+		_r = bd(_r)
+		print(f"output memoizeWithArgs > {_r}")
+
+		def _companion_prop_spec():
+			"""
+				return a protobuf with hardcoded companion specs
+			"""
+			spec = msg_pb2.CompanionPropsSpec()
+			spec.os = "Mac OS"
+			spec.version.primary = 10
+			spec.version.secondary = 15
+			spec.version.tertiary = 7
+			spec.requireFullSync = False
+			spec.platformType = 1
+			return spec.SerializeToString()
+
+		_a = _companion_prop_spec()
+		print(f"companion_proto > {_a}")
+
+
+
 	def _process_server_hello(self, shello):
 		"""
 		process server hello on line  61035 a.k.a `function w(e, t, n)`
@@ -198,6 +238,13 @@ class Client(object):
 		self._mix_into_key()
 		_dec_payload = self._decrypt(shello.payload)
 		print("decrypted payload length-", len(_dec_payload))
+		
+		# verifyChainCertificateWA6 Line #61025 skipped
+
+		# returned tuple by generator M() on Line #61095 is 
+		# (_get_registration_info, _get_signed_prekey, s_eph)
+		
+		self._get_client_payload_for_registration()
 
 
 	def client_dump(self):
@@ -241,8 +288,7 @@ class Client(object):
 		recv_data = self.ws.recv_frame()
 		shello.ParseFromString(recv_data.data[6:])
 		self._process_server_hello(shello)
-
-
+	
 if __name__ == "__main__":
 	client = Client(debug=False)
 	client.start()
