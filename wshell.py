@@ -230,6 +230,8 @@ class Client(object):
 		_a = _companion_prop_spec()
 		print(f"companion_proto > {_a}")
 
+		# build final protobuf
+
 
 
 	def _process_server_hello(self, shello):

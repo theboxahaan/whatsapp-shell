@@ -25,3 +25,96 @@ message ClientFinish {
     optional bytes static = 1;
     optional bytes payload = 2;
 }
+
+message CompanionPropsSpec {
+    optional string os = 1;
+		optional AppVersion version = 2;
+		enum CompanionPropsPlatformType {
+			UNKNOWN = 0;
+			CHROME = 1;
+			FIREFOX = 2;
+			IE = 3;
+			OPERA = 4;
+			SAFARI = 5;
+			EDGE = 6;
+			DESKTOP = 7;
+			IPAD = 8;
+			ANDROID_TABLET = 9;
+			OHANA = 10;
+			ALOHA = 11;
+			CATALINA = 12;
+			TCL_TV = 13;
+		}
+		optional CompanionPropsPlatformType platformType = 3;
+		optional bool requireFullSync = 4;
+}
+
+message AppVersion {
+		optional uint32 primary = 1;
+		optional uint32 secondary = 2;
+		optional uint32 tertiary = 3;
+		optional uint32 quaternary = 4;
+		optional uint32 quinary = 5;
+}
+
+message ClientPayload {
+	optional uint64 username = 1;
+	optional bool passive = 3;
+	optional UserAgent userAgent = 5;
+	optional WebInfo webInfo = 6;
+	optional string pushName = 7;
+	optional sfixed32 sessionId = 9;
+	optional bool shortConnect = 10;
+	enum ClientPayloadConnectType {
+		CELLULAR_UNKNOWN = 0;
+		WIFI_UNKNOWN = 1;
+		CELLULAR_EDGE = 100;
+		CELLULAR_IDEN = 101;
+		CELLULAR_UMTS = 102;
+		CELLULAR_EVDO = 103;
+		CELLULAR_GPRS = 104;
+		CELLULAR_HSDPA = 105;
+		CELLULAR_HSUPA = 106;
+		CELLULAR_HSPA = 107;
+		CELLULAR_CDMA = 108;
+		CELLULAR_1XRTT = 109;
+		CELLULAR_EHRPD = 110;
+		CELLULAR_LTE = 111;
+		CELLULAR_HSPAP = 112;
+	}
+	optional ClientPayloadConnectType connectType = 12;
+	enum ClientPayloadConnectReason {
+		PUSH = 0;
+		USER_ACTIVATED = 1;
+		SCHEDULED = 2;
+		ERROR_RECONNECT = 3;
+		NETWORK_SWITCH = 4;
+		PING_RECONNECT = 5;
+	}
+	optional ClientPayloadConnectReason connectReason = 13;
+	repeated int32 shards = 14;
+	optional DNSSource dnsSource = 15;
+	optional uint32 connectAttemptCount = 16;
+	optional uint32 device = 18;
+	optional CompanionRegData regData = 19;
+	enum ClientPayloadProduct {
+		WHATSAPP = 0;
+		MESSENGER = 1;
+	}
+	optional ClientPayloadProduct product = 20;
+	optional bytes fbCat = 21;
+	optional bytes fbUserAgent = 22;
+	optional bool oc = 23;
+	optional int32 lc = 24;
+	enum ClientPayloadIOSAppExtension {
+		SHARE_EXTENSION = 0;
+		SERVICE_EXTENSION = 1;
+		INTENTS_EXTENSION = 2;
+	}
+	optional ClientPayloadIOSAppExtension iosAppExtension = 30;
+	optional uint64 fbAppId = 31;
+	optional bytes fbDeviceId = 32;
+	optional bool pull = 33;
+}
+
+
