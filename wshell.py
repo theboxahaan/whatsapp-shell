@@ -96,9 +96,17 @@ class Client(object):
 		self.cident_key.public  = self.cident_key.private.public_key()
 
 		#------------------[CLIENT DICTS]-----------------#
+		# stand ins for cookies and databases
 		self.meta                 = {"signal_last_spk_id": None}
 		self.signed_prekey_store  = {}
 		self._id_to_signed_prekey = {}
+
+
+		#------------------[NOISE CIPHERS]----------------#
+		# the noise socket's AESGCM objects used for encryption and decryption of 
+		# messages respectively
+		self.noise_enc = None
+		self.noise_dec = None
 
 		if debug:
 			websocket.enableTrace(True)
@@ -192,18 +200,27 @@ class Client(object):
 		return self.shared_key
 
 
+	def _extract_with_salt_and_expand(self, salt:bytes=None, key_material:bytes=None):
+		"""
+		reconstruction of `extractWithSaltAndExpand` on Line #11384
+		"""
+		if salt is None:
+			salt = self.salt
+		hkdf = HKDF(algorithm=hashes.SHA256(), length=64, salt=salt, info=None)
+		key = hkdf.derive(key_material)
+		return key
+
 	def _mix_into_key(self, salt:bytes=None, key_material:bytes=None):
 		"""
 		update self.salt, self.cryptokey using an hkdf
+		reconstruction of `mixIntoKey` found on Line #11482
 		"""
 		self.counter = 0
 		if salt is None:
 			salt = self.salt
 		if key_material is None:
 			key_material = self.shared_key
-
-		hkdf = HKDF(algorithm=hashes.SHA256(), length=64, salt=salt, info=None)
-		key = hkdf.derive(key_material)
+		key = self._extract_with_salt_and_expand(salt, key_material)
 		self.salt = key[:32]
 		self.cryptokey = AESGCM(key[32:]) 
 
@@ -314,6 +331,7 @@ class Client(object):
 		return pyld_spec.SerializeToString()
 
 	def _process_server_hello(self, shello:msg_pb2.ServerHello=None):
+		#TODO split this function
 		"""
 		process server hello on line  61035 a.k.a `function w(e, t, n)`
 		"""
@@ -368,7 +386,7 @@ class Client(object):
 					\nprekey_sig     : {self.prekey_sig[:4]}...\
 					\n****** CLIENT STATE END ******\n"
 
-	def start(self):
+	def initiate_noise_handshake(self):
 		
 		self._authenticate(self.WA_HEADER)
 
@@ -391,6 +409,15 @@ class Client(object):
 		shello.ParseFromString(recv_data)
 		self._process_server_hello(shello.serverHello)
 	
+	def finish(self):
+		"""
+		create two AESGCM objects for encryption/decryption respectively
+		"""
+		_k = self._extract_with_salt_and_expand(self.salt, b"")
+		self.noise_enc, self.noise_dec = AESGCM(_k[:32]), AESGCM(_k[32:])
+		
+	
 if __name__ == "__main__":
 	client = Client(debug=False)
-	client.start()
+	client.initiate_noise_handshake()
+	client.finish()
