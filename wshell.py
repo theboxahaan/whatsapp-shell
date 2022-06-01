@@ -110,6 +110,34 @@ class Client(object):
 		self.ws = websocket.WebSocket()
 		self.ws.connect(self.websocket_url, header=self.header)
 
+
+	def _send_frame(self, intro_bytes:bytes=None, payload:bytes=None) -> int:
+		"""
+		append intro bytes, sizeof `payload` (cast to 3 bytes) to the actual payload and send
+		via websocket
+		@arg intro_bytes: bytes to be appended
+		@arg payload    : payload to be sent
+		@return length  : total length of sent bytes
+		"""
+		if intro_bytes is None:
+			intro_bytes = b"" 
+		final_pyld = intro_bytes + len(payload).to_bytes(3, "big") + payload
+		print(f'-> size: {len(final_pyld)}')
+		self.ws.send_binary(final_pyld)
+		return len(final_pyld)
+
+
+	def _recv_frame(self) -> bytes:
+		"""
+		receive `binary_frame` from server and parse it to return `data` bytes
+		@return payload bytes
+		"""
+		pyld = self.ws.recv_frame()
+		parsed_len = int.from_bytes(pyld.data[:3], "big")
+		print(f'<- size: {len(pyld.data)}; parsed len: {parsed_len}')
+		return pyld.data[3:]
+
+
 	def _gen_signed_prekey(self, private_bytes:bytes=None):
 		"""
 		generates PreShareKeys and signs the public key with the Identity Key
@@ -128,20 +156,6 @@ class Client(object):
 		# put the keypair into the prekey store
 		self.signed_prekey_store[self.prekey_id] = (self.prekey, self.prekey_sig)
 
-
-	def _send_frame(self, intro_bytes:bytes=None, payload:bytes=None) -> int:
-		"""
-		append intro bytes, sizeof `payload` (cast to 3 bytes) to the actual payload and send
-		via websocket
-		@arg intro_bytes: bytes to be appended
-		@arg payload    : payload to be sent
-		@return length  : total length of sent bytes
-		"""
-		if intro_bytes is None:
-			intro_bytes = b"" 
-		final_pyld = intro_bytes + len(payload).to_bytes(3, "big") + payload
-		self.ws.send_binary(final_pyld)
-		return len(final_pyld)
 
 
 	def _get_registration_info(self) -> tuple:
@@ -359,10 +373,8 @@ class Client(object):
 		fin_msg.clientFinish.static = _enc_static_key
 		fin_msg.clientFinish.payload = _enc_client_payload
 		_l = self._send_frame(payload=fin_msg.SerializeToString())
-		print(f':. sent client finish message of size > {_l}')
 
-		srv_resp = self.ws.recv_frame()
-		print(f':. received server data > {len(srv_resp.data)}')
+		srv_resp = self._recv_frame()
 
 
 	def client_dump(self) -> str:
@@ -398,15 +410,13 @@ class Client(object):
 		chello = msg_pb2.HandshakeMessage()
 		chello.clientHello.ephemeral = self.cephemeral_key.public.data
 		_l = self._send_frame(intro_bytes=self.WA_HEADER, payload=chello.SerializeToString())
-		print(f':. sent client hello msg of size > {_l}')
 
 		# receive server hello
+		recv_data = self._recv_frame()
 		shello = msg_pb2.HandshakeMessage()
-		recv_data = self.ws.recv_frame()
-		print(f':. recvd server hello msg > {len(recv_data.data)}')
 
 		# parse from the 4th byte as first 3 bytes encode the length
-		shello.ParseFromString(recv_data.data[3:])
+		shello.ParseFromString(recv_data)
 		self._process_server_hello(shello.serverHello)
 	
 if __name__ == "__main__":
