@@ -13,9 +13,14 @@ $ python wshell.py
 	- [x] Construct the client finish message
 - [ ] Get the QR
 	- [x] Decrypt the server response on Noise Handshake successful
-	- [ ] Extract the correct `ref` string from the decrypted parsed data
-	- [ ] Construct the QR code
+	- [x] Extract the correct `ref` string from the decrypted parsed data
+	- [x] Construct the QR code
 	- [ ] Scan and test!
+        
+        Scanning shows an error msg saying that device could not be linked now. However,
+        our client gets partially linked as it throws a max linking error after ~5 tries.
+        Need to figure out why linking fails.
+	- [ ] A 37 byte frame is sent to the server. what is it ?
 - [ ] Setup the Ratchet
 - [ ] Retrieve Messages
 

@@ -1,5 +1,7 @@
 import websocket
 import secrets
+import gzip
+import qrcode
 from types import SimpleNamespace
 from base64 import b64encode as be
 from base64 import b64decode as bd
@@ -94,6 +96,8 @@ class Client(object):
 			self.cident_key.private = Ed25519PrivateKey.generate()
 		
 		self.cident_key.public  = self.cident_key.private.public_key()
+
+		self.adv_secret_key = be(secrets.token_bytes(32))
 
 		#------------------[CLIENT DICTS]-----------------#
 		# stand ins for cookies and databases
@@ -437,8 +441,24 @@ if __name__ == "__main__":
 		assert len(dec) == 588
 	except Exception as e:
 		print(':. decryption failed {e}')
+	
+	#TODO write a WapParser
+	ref = dec[dec.find(b'ref') + 5: dec.find(b'==')+2]
 
+	qr_string = ref.decode() + "," + be(client.cstatic_key.public.data).decode() + ","\
+	+ be(get_Ed25519Key_bytes(client.cident_key.public)).decode() + ","\
+	+ client.adv_secret_key.decode()
 
+	print('qr string > ', qr_string)
 
-
+	#FIXME scaling issue when using print_tty
+	qr = qrcode.QRCode(
+			version=1,
+			error_correction=qrcode.constants.ERROR_CORRECT_L,
+			box_size=5,
+			border=2
+	)
+	qr.add_data(qr_string)
+	qr.make(fit=True)
+	qr.print_ascii(tty=True, invert=True)
 
