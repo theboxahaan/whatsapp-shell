@@ -230,7 +230,10 @@ class Client(object):
 
 	def _encrypt(self, pt:bytes=None) -> bytes:
 		"""
-		encrypt plaintext `pt` using cryptokey
+		encrypt plaintext `pt` using cryptokey. reconstruction of `encrypt()` found on 
+		Line #11438
+		@arg pt: plaintext to be encrypted
+		@return bytes: encrypted bytes
 		"""
 		try:
 			_enc = self.cryptokey.encrypt(self._gen_iv(self.counter), pt, self.hash)
@@ -245,7 +248,8 @@ class Client(object):
 
 	def _decrypt(self, ct:bytes=None) -> bytes:
 		"""
-		decrypt ciphertext `ct`  using cryptokey
+		decrypt ciphertext `ct`  using cryptokey. reconstruction of `decrypt()` found on
+		Line #11454
 		@arg   : bytes - ct
 		@return: bytes - decrypted bytes
 		"""
