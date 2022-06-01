@@ -1,5 +1,4 @@
 import websocket
-import msg_pb2
 import secrets
 from types import SimpleNamespace
 from base64 import b64encode as be
@@ -12,6 +11,8 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from typing import Union
 
+import msg_pb2
+import proto_utils
 
 def get_Ed25519Key_bytes(key:Union[Ed25519PublicKey, Ed25519PrivateKey]=None) -> bytes:
 	#TODO migrate some stuff to `utils.py` 
@@ -52,9 +53,9 @@ class Client(object):
 
 
 	def __init__(self, ws:websocket=None, prekey_id:int=None, noise_info_iv:list=None,\
-							recovery_token:bytes=None, static_private_bytes:bytes=None,\
-							ephemeral_private_bytes:bytes=None, ident_private_bytes:bytes=None,\
-							reg_id:bytes=None, debug:bool=False):
+               recovery_token:bytes=None, static_private_bytes:bytes=None,\
+               ephemeral_private_bytes:bytes=None, ident_private_bytes:bytes=None,\
+               reg_id:bytes=None, debug:bool=False):
 		"""
 		counter   :@updatable
 		cryptokey :@updateable
@@ -172,14 +173,6 @@ class Client(object):
 		return (self.prekey_id, self.prekey.public, self.prekey.private, self.prekey_sig)
 
 
-	def _to_signal_curve_keypair(self):
-		return (b'5' + self.cident_key.public, self.cident_key.private)
-
-
-	def _gen_signed_key_pair(self):
-		pass
-
-
 	def _rotate_signed_prekey(self):
 		"""
 		set prekey id and set in meta dict
@@ -267,7 +260,7 @@ class Client(object):
 
 
 	def _get_client_payload_for_registration(self, reg_info:tuple=None,\
-																					key_info:tuple=None, t:dict=None) -> bytes:
+                                           key_info:tuple=None, t:dict=None) -> bytes:
 		"""
 		function defined at Line #60338
 		reg_info: @arg - returned by get_registration_info()
@@ -294,52 +287,27 @@ class Client(object):
 		_digest.update(b"2.2218.8")
 		_r = _digest.finalize()
 
-
-		def _companion_prop_spec():
-			"""
-				return a protobuf with hardcoded companion specs
-			"""
-			spec = msg_pb2.CompanionPropsSpec()
-			spec.os = "Mac OS"
-			spec.version.primary = 10
-			spec.version.secondary = 15
-			spec.version.tertiary = 7
-			spec.requireFullSync = False
-			spec.platformType = 1
-			return spec.SerializeToString()
-
-		_a = _companion_prop_spec()
+		# build client side protobufs
+		spec = msg_pb2.CompanionPropsSpec()
+		proto_utils.update_protobuf(spec, proto_utils.defaults.CompanionPropsSpec)
+		_a = spec.SerializeToString()
 
 		# build final protobuf
-		pyld = msg_pb2.ClientPayloadSpec()
-		pyld.pull = t['pull'] 
-		pyld.passive = t['passive']
-		pyld.connectReason = 1
-		pyld.connectType = 1
-		pyld.webInfo.webSubPlatform = 0
-		pyld.userAgent.platform = 14
-		pyld.userAgent.osVersion = "0.1"
-		pyld.userAgent.releaseChannel = 0
-		pyld.userAgent.osBuildNumber = "0.1"
-		pyld.userAgent.mnc = "000"
-		pyld.userAgent.mcc = "000"
-		pyld.userAgent.manufacturer = ""
-		pyld.userAgent.localeLanguageIso6391 = "en"
-		pyld.userAgent.localeCountryIso31661Alpha2 = "GB"
-		pyld.userAgent.device = "Desktop"
-		pyld.userAgent.appVersion.primary = 2
-		pyld.userAgent.appVersion.secondary = 2218
-		pyld.userAgent.appVersion.tertiary = 8
-		pyld.devicePairingData.buildHash = _r
-		pyld.devicePairingData.companionProps = _a
-		pyld.devicePairingData.eIdent = get_Ed25519Key_bytes(reg_info[1])
-		pyld.devicePairingData.eKeytype = b'\x05'
-		pyld.devicePairingData.eRegid = b"\x00\x00" + reg_info[0]
-		pyld.devicePairingData.eSkeyId = key_info[0].to_bytes(3, "big")
-		pyld.devicePairingData.eSkeySig = key_info[3]
-		pyld.devicePairingData.eSkeyVal = get_Ed25519Key_bytes(key_info[1])
-
-		return pyld.SerializeToString()
+		pyld_spec = msg_pb2.ClientPayloadSpec()
+		proto_utils.update_protobuf(pyld_spec, proto_utils.defaults.ClientPayloadSpec)
+		proto_utils.update_protobuf(pyld_spec, t)
+		proto_utils.update_protobuf(pyld_spec, {
+			'devicePairingData': {
+				'buildHash': _r,
+				'companionProps': _a,
+				'eIdent': get_Ed25519Key_bytes(reg_info[1]),
+				'eRegid': b'\x00\x00' + reg_info[0],
+				'eSkeyId': key_info[0].to_bytes(3, 'big'),
+				'eSkeySig': key_info[3],
+				'eSkeyVal': get_Ed25519Key_bytes(key_info[1])
+			}
+		})
+		return pyld_spec.SerializeToString()
 
 	def _process_server_hello(self, shello:msg_pb2.ServerHello=None):
 		"""
