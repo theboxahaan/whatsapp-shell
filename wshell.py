@@ -135,7 +135,7 @@ class Client(object):
 		self.ws.send_binary(final_pyld)
 		return len(final_pyld)
 
-
+	#TODO remove `_` from name as it is being used outside the class
 	def _recv_frame(self) -> bytes:
 		"""
 		receive `binary_frame` from server and parse it to return `data` bytes
@@ -331,10 +331,12 @@ class Client(object):
 		return pyld_spec.SerializeToString()
 
 	def _process_server_hello(self, shello:msg_pb2.ServerHello=None):
-		#TODO split this function
 		"""
 		process server hello on line  61035 a.k.a `function w(e, t, n)`
 		"""
+		#TODO clean server ephemeral saving up
+		self.server_ephemeral = shello.ephemeral
+
 		self._shared_secret(pubkey=PublicKey(shello.ephemeral))
 		self._authenticate(shello.ephemeral)
 		self._mix_into_key()
@@ -345,6 +347,8 @@ class Client(object):
 		
 		# verifyChainCertificateWA6 Line #61025 skipped
 
+	def _send_client_finish(self):
+
 		# returned tuple by generator M() on Line #61095 is 
 		# (_get_registration_info, _get_signed_prekey, s_eph)
 		
@@ -353,7 +357,7 @@ class Client(object):
 		# Line #61105 waNoiseInfo.get()....staticKeyPair
 		# returns clients static keyPair
 		_enc_static_key = self._encrypt(self.cstatic_key.public.data)
-		self._shared_secret(keypair=self.cstatic_key, pubkey=PublicKey(shello.ephemeral)) 
+		self._shared_secret(keypair=self.cstatic_key, pubkey=PublicKey(self.server_ephemeral)) 
 		self._mix_into_key()
 
 		# now encrypt client_payload
@@ -364,7 +368,6 @@ class Client(object):
 		fin_msg.clientFinish.payload = _enc_client_payload
 		_l = self._send_frame(payload=fin_msg.SerializeToString())
 
-		srv_resp = self._recv_frame()
 
 
 	def client_dump(self) -> str:
@@ -408,7 +411,10 @@ class Client(object):
 		# parse from the 4th byte as first 3 bytes encode the length
 		shello.ParseFromString(recv_data)
 		self._process_server_hello(shello.serverHello)
-	
+
+		self._send_client_finish()
+
+
 	def finish(self):
 		"""
 		create two AESGCM objects for encryption/decryption respectively
@@ -421,3 +427,18 @@ if __name__ == "__main__":
 	client = Client(debug=False)
 	client.initiate_noise_handshake()
 	client.finish()
+	srv_resp = client._recv_frame()
+	
+	# attempt to decode the data sent by the server
+	#FIXME write a method to do this properly not in the adhoc way it's done now
+	# refer to `_handleCiphertext on Line #11528
+	try:
+		dec = client.noise_dec.decrypt(b'\x00'*12, srv_resp, b"")
+		assert len(dec) == 588
+	except Exception as e:
+		print(':. decryption failed {e}')
+
+
+
+
+
