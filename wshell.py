@@ -5,14 +5,21 @@ from types import SimpleNamespace
 from base64 import b64encode as be
 from base64 import b64decode as bd
 from dissononce.dh.x25519.x25519 import X25519DH, PublicKey, PrivateKey
+from dissononce.dh.keypair import KeyPair
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from typing import Union
 
-def get_Ed25519Key_bytes(key):
-	#TODO s
-	# migrate some stuff to `utils.py` 
+
+def get_Ed25519Key_bytes(key:Union[Ed25519PublicKey, Ed25519PrivateKey]=None) -> bytes:
+	#TODO migrate some stuff to `utils.py` 
+	"""
+	extract raw bytes from Ed25519Public/PrivateKey object
+	@arg key: key from which raw bytes are to be extracted
+	@return raw bytes of `key`
+	"""
 	if isinstance(key, Ed25519PublicKey):
 		_tmp = key.public_bytes(
 						encoding=serialization.Encoding.Raw,
@@ -122,7 +129,7 @@ class Client(object):
 		self.signed_prekey_store[self.prekey_id] = (self.prekey, self.prekey_sig)
 
 
-	def _send_frame(self, intro_bytes:bytes=None, payload:bytes=None):
+	def _send_frame(self, intro_bytes:bytes=None, payload:bytes=None) -> int:
 		"""
 		append intro bytes, sizeof `payload` (cast to 3 bytes) to the actual payload and send
 		via websocket
@@ -137,14 +144,14 @@ class Client(object):
 		return len(final_pyld)
 
 
-	def _get_registration_info(self):
+	def _get_registration_info(self) -> tuple:
 		"""
 		get registration info
 		"""
 		return (self.reg_id, self.cident_key.public, self.cident_key.private)
 
 
-	def _get_signed_prekey(self):
+	def _get_signed_prekey(self) -> tuple:
 		"""
 		get prekey w/ signature
 		"""
@@ -167,7 +174,7 @@ class Client(object):
 		self.meta['signal_last_spk_id'] = self.prekey_id
 
 
-	def _shared_secret(self, keypair=None, pubkey=None):
+	def _shared_secret(self, keypair:KeyPair=None, pubkey:PublicKey=None) -> bytes:
 		"""
 		sharedSecret function on Line#35247
 		update the self.shared_secret key by mixing the ephemeral keypair with the pubkey
@@ -205,7 +212,7 @@ class Client(object):
 		self.hash = digest.finalize()
 
 
-	def _gen_iv(self, counter:int=None):
+	def _gen_iv(self, counter:int=None) -> bytes:
 		"""
 		convert a counter int into a 96 bit vector but strangely only the last 4 bytes
 		are ever used
@@ -214,7 +221,7 @@ class Client(object):
 		return b"\x00\x00\x00\x00\x00\x00\x00\x00" + counter.to_bytes(4, "big")
 
 
-	def _encrypt(self, pt:bytes=None):
+	def _encrypt(self, pt:bytes=None) -> bytes:
 		"""
 		encrypt plaintext `pt` using cryptokey
 		"""
@@ -229,7 +236,7 @@ class Client(object):
 
 
 
-	def _decrypt(self, ct:bytes=None):
+	def _decrypt(self, ct:bytes=None) -> bytes:
 		"""
 		decrypt ciphertext `ct`  using cryptokey
 		@arg   : bytes - ct
@@ -245,12 +252,8 @@ class Client(object):
 			raise e
 
 
-	def _get_client_payload_for_registration(self, reg_info=None, key_info=None, t=None):
-		#TODO
-		# Rename to match JS client
-		# - msg_pb2.ClientPayload
-		# - msg_pb2.ClientPayload.regData
-		
+	def _get_client_payload_for_registration(self, reg_info:tuple=None,\
+																					key_info:tuple=None, t:dict=None) -> bytes:
 		"""
 		function defined at Line #60338
 		reg_info: @arg - returned by get_registration_info()
@@ -294,7 +297,7 @@ class Client(object):
 		_a = _companion_prop_spec()
 
 		# build final protobuf
-		pyld = msg_pb2.ClientPayload()
+		pyld = msg_pb2.ClientPayloadSpec()
 		pyld.pull = t['pull'] 
 		pyld.passive = t['passive']
 		pyld.connectReason = 1
@@ -313,18 +316,18 @@ class Client(object):
 		pyld.userAgent.appVersion.primary = 2
 		pyld.userAgent.appVersion.secondary = 2218
 		pyld.userAgent.appVersion.tertiary = 8
-		pyld.regData.buildHash = _r
-		pyld.regData.companionProps = _a
-		pyld.regData.eIdent = get_Ed25519Key_bytes(reg_info[1])
-		pyld.regData.eKeytype = b'\x05'
-		pyld.regData.eRegid = b"\x00\x00" + reg_info[0]
-		pyld.regData.eSkeyId = key_info[0].to_bytes(3, "big")
-		pyld.regData.eSkeySig = key_info[3]
-		pyld.regData.eSkeyVal = get_Ed25519Key_bytes(key_info[1])
+		pyld.devicePairingData.buildHash = _r
+		pyld.devicePairingData.companionProps = _a
+		pyld.devicePairingData.eIdent = get_Ed25519Key_bytes(reg_info[1])
+		pyld.devicePairingData.eKeytype = b'\x05'
+		pyld.devicePairingData.eRegid = b"\x00\x00" + reg_info[0]
+		pyld.devicePairingData.eSkeyId = key_info[0].to_bytes(3, "big")
+		pyld.devicePairingData.eSkeySig = key_info[3]
+		pyld.devicePairingData.eSkeyVal = get_Ed25519Key_bytes(key_info[1])
 
 		return pyld.SerializeToString()
 
-	def _process_server_hello(self, shello):
+	def _process_server_hello(self, shello:msg_pb2.ServerHello=None):
 		"""
 		process server hello on line  61035 a.k.a `function w(e, t, n)`
 		"""
@@ -362,7 +365,7 @@ class Client(object):
 		print(f':. received server data > {len(srv_resp.data)}')
 
 
-	def client_dump(self):
+	def client_dump(self) -> str:
 		"""
 		repr of client object
 		"""
