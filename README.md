@@ -12,11 +12,10 @@ $ python wshell.py
 	- [x] Finish decrypting the shello.static and shello.payload blobs	
 	- [x] Construct the client finish message
 - [ ] Get the QR
+	- [x] Decrypt the server response on Noise Handshake successful
+	- [ ] Extract the correct `ref` string from the decrypted parsed data
+	- [ ] Construct the QR code
+	- [ ] Scan and test!
 - [ ] Setup the Ratchet
 - [ ] Retrieve Messages
 
-### Notes
-1. Client-Server Handshake
-	- Send Client Hello (43 bytes)
-	- Receive Server Hello (350 bytes)
-	- client Response (334 bytes)
