@@ -89,7 +89,7 @@ def W(e, t, extra:bool):
 	'''
 	function at Line #10980
 	'''
-	print('extra> ', extra)
+	# print('extra> ', extra)
 	if extra is not None:
 		return e.read(t).decode('utf-8')
 	else:
@@ -101,7 +101,6 @@ def F(e:io.BytesIO=None, t:bool=None):
 	function `F(e,t)` on Line #10862
 	'''
 	n = int.from_bytes(e.read(1), 'big')
-	print(n)
 	if n == 0:
 		return None
 	if n == 248:
@@ -170,7 +169,6 @@ def F(e:io.BytesIO=None, t:bool=None):
 
 def K(e:io.BytesIO=None):
 	t = F(e, True)
-	print(f'K>{t}')
 	if not isinstance(t, str):
 		print('decode string got invalid argument')
 	return t
@@ -180,7 +178,6 @@ def M(e, *args):
 	'''
 	class at Line #10665
 	'''
-	print(f'arglen > {len(args)}')
 	if len(args) > 0:
 		t = args[0]
 	else:
@@ -217,8 +214,8 @@ def Y(e:io.BytesIO=None):
 	assert n == 1
 	i = F(e, False)
 	# assert something else ... dont care for now
-	print(f'r > {r}')
-	print(f'i > {i}')
+	#print(f'r > {r}')
+	#print(f'i > {i}')
 	return M(a,r,i)
 
 

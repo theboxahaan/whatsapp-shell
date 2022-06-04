@@ -15,6 +15,7 @@ from typing import Union
 
 import msg_pb2
 import proto_utils
+import wap
 
 def get_Ed25519Key_bytes(key:Union[Ed25519PublicKey, Ed25519PrivateKey]=None) -> bytes:
 	#TODO migrate some stuff to `utils.py` 
@@ -441,11 +442,19 @@ if __name__ == "__main__":
 		assert len(dec) == 588
 	except Exception as e:
 		print(f':. decryption failed {e}')
-	
-	#TODO write a WapParser
-	ref = dec[dec.find(b'ref') + 5: dec.find(b'==')+2]
 
-	qr_string = ref.decode() + "," + be(client.cstatic_key.public.data).decode() + ","\
+	dec_stream = wap.create_stream(dec)
+	if dec_stream.read(1) != b'\x00':
+		print(f'might need to gzip inflate')
+		raise NotImplementedError
+	
+	parsed_dec = wap.Y(dec_stream)
+	print(f"parsed id ~> {parsed_dec.attrs['id']}")
+	
+	#TODO write a generator for the 6 refs obtained from server
+	ref = parsed_dec.attrs['md'][0].content[0].content
+
+	qr_string = ref + "," + be(client.cstatic_key.public.data).decode() + ","\
 	+ be(get_Ed25519Key_bytes(client.cident_key.public)).decode() + ","\
 	+ client.adv_secret_key.decode()
 
