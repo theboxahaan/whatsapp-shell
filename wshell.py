@@ -440,7 +440,7 @@ if __name__ == "__main__":
 		dec = client.noise_dec.decrypt(b'\x00'*12, srv_resp, b"")
 		assert len(dec) == 588
 	except Exception as e:
-		print(':. decryption failed {e}')
+		print(f':. decryption failed {e}')
 	
 	#TODO write a WapParser
 	ref = dec[dec.find(b'ref') + 5: dec.find(b'==')+2]

@@ -20,6 +20,7 @@ $ python wshell.py
             Scanning shows an error msg saying that device could not be linked now. However,
             our client gets partially linked as it throws a max linking error after ~5 tries.
             Need to figure out why linking fails.
+	- [ ] Write a `WapParser` (Line #11128)
 	- [ ] A 37 byte frame is sent to the server. what is it ?
 - [ ] Setup the Ratchet
 - [ ] Retrieve Messages
