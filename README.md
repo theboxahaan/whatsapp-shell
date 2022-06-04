@@ -33,3 +33,15 @@ construct the 37 byte response which is needed to link successfully using the QR
 
 2. The final frame is poosibly constructed using the `castStanza` function which is called on 
 Line #47522. This needs to be explored.
+
+
+## `WapParser`
+> Ref function `Y()` on Line #10950
+
+1. `readUint8`. If `0` then proceed, else it might be `gzip` deflated.
+2. `t = readUint8`. If `t == 248`, then `n = readUint8`
+3. ref `F(e,t)` on Line #10862,  if `readUint8 == ...` (compare against various values )
+For the fist client response, `readUint8 = 30` and the mapped string is `iq`. This string is returned.
+4. `a="iq"` is returned on Line #10962 
+5. continue to Line #10963 that assigns the `id` to an attribute of `r` in one of its iterations.
+6. ... complete it in code.
