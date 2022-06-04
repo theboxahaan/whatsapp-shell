@@ -452,7 +452,16 @@ if __name__ == "__main__":
 	print(f"parsed id ~> {parsed_dec.attrs['id']}")
 	
 	#TODO write a generator for the 6 refs obtained from server
-	ref = parsed_dec.attrs['md'][0].content[0].content
+	ref_v = [parsed_dec.attrs['md'][0].content[i].content for i in range(6)]
+	ref = ref_v[0]
+
+	# `castStanza` on Line #47522
+	# Convert `M` type wap object to a buffer using function `N(e, t)` on Line #10727
+
+
+
+
+
 
 	qr_string = ref + "," + be(client.cstatic_key.public.data).decode() + ","\
 	+ be(get_Ed25519Key_bytes(client.cident_key.public)).decode() + ","\
