@@ -25,3 +25,11 @@ $ python wshell.py
 - [ ] Setup the Ratchet
 - [ ] Retrieve Messages
 
+
+## Notes
+1. `t.decodeStanza()` on Line #10588 decodes the 588 byte blob received from the server after
+finishing the Noise handshake. Decoding this gives the `id` and the `ref`s which are usded to
+construct the 37 byte response which is needed to link successfully using the QR.
+
+2. The final frame is poosibly constructed using the `castStanza` function which is called on 
+Line #47522. This needs to be explored.
