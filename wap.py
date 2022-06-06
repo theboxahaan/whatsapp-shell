@@ -44,7 +44,7 @@ def D(e,t:io.BytesIO=None):
 			t.write(b'\xf9')
 			t.write(n.to_bytes(2, 'big'))
 	N(e.tag, t)
-	print(':. wrote the tag to the buffer', e.attrs.keys())
+	# print(':. wrote the tag to the buffer', e.attrs.keys())
 	if e.attrs is not None:
 		for n in e.attrs.keys():
 			G(n, t)

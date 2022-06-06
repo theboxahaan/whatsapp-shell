@@ -450,8 +450,8 @@ if __name__ == "__main__":
 		raise NotImplementedError
 	
 	parsed_dec = wap.Y(dec_stream)
-	print(f"parsed id ~> {parsed_dec.attrs['id']}")
-	print(parsed_dec.attrs)
+	#print(f"parsed id ~> {parsed_dec.attrs['id']}")
+	#print(parsed_dec.attrs)
 	#TODO write a generator for the 6 refs obtained from server
 	ref_v = [parsed_dec.attrs['md'][0].content[i].content for i in range(6)]
 	ref = ref_v[0]
@@ -470,19 +470,19 @@ if __name__ == "__main__":
 	wap.N(_x, t)
 	t.seek(0)
 	_buf = b'\x00' + t.read()
-	print(f'len > {len(_buf)}\n{_buf}')
+	# print(f'len > {len(_buf)}\n{_buf}')
 
 	try:
 		enc = client.noise_enc.encrypt(b'\x00'*12, _buf, b"")
 	except Exception as e:
 		print(f':. encryption failed {e}')
-	print(f'enc len > {len(enc)}')
+	# print(f'enc len > {len(enc)}')
 	client._send_frame(payload=enc)
 	qr_string = ref + "," + be(client.cstatic_key.public.data).decode() + ","\
 	+ be(get_Ed25519Key_bytes(client.cident_key.public)).decode() + ","\
 	+ client.adv_secret_key.decode()
 
-	print('qr string > ', qr_string)
+	print('qr string >', qr_string)
 
 	#FIXME scaling issue when using print_tty
 	qr = qrcode.QRCode(
