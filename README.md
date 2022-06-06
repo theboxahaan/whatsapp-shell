@@ -11,7 +11,7 @@ $ python wshell.py
         Will put up an image detailing it soon. Possibly make an extract script from it as well.
 	- [x] Finish decrypting the shello.static and shello.payload blobs	
 	- [x] Construct the client finish message
-- [ ] Get the QR
+- [x] Get the QR
 	- [x] Decrypt the server response on Noise Handshake successful
 	- [x] Extract the correct `ref` string from the decrypted parsed data
 	- [x] Construct the QR code
@@ -21,8 +21,9 @@ $ python wshell.py
             our client gets partially linked as it throws a max linking error after ~5 tries.
             Need to figure out why linking fails.
 	- [x] Write a `WapParser` (Line #11128)
-	- [ ] Write a WapEncoder (Line #10727)
-	- [ ] A 37 byte frame is sent to the server. ~~what is it ?~~ -- possibly called the `result`
+	- [x] Write a WapEncoder (Line #10727)
+	- [x] A 37 byte frame is sent to the server. ~~what is it ?~~ -- possibly called the `result`
+	- [ ] A ~250 byte response is sent from the server which I don't get yet. Get that msg
 - [ ] Setup the Ratchet
 - [ ] Retrieve Messages
 

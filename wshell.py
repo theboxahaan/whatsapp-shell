@@ -2,6 +2,7 @@ import websocket
 import secrets
 import gzip
 import qrcode
+import io
 from types import SimpleNamespace
 from base64 import b64encode as be
 from base64 import b64decode as bd
@@ -450,7 +451,7 @@ if __name__ == "__main__":
 	
 	parsed_dec = wap.Y(dec_stream)
 	print(f"parsed id ~> {parsed_dec.attrs['id']}")
-	
+	print(parsed_dec.attrs)
 	#TODO write a generator for the 6 refs obtained from server
 	ref_v = [parsed_dec.attrs['md'][0].content[i].content for i in range(6)]
 	ref = ref_v[0]
@@ -458,11 +459,25 @@ if __name__ == "__main__":
 	# `castStanza` on Line #47522
 	# Convert `M` type wap object to a buffer using function `N(e, t)` on Line #10727
 
+	# serialize WAPJID("iq", {"to": _jid: {server: "s.whatsapp.net", type: 0, user: None},
+	#                         "type": "result", "id": parsed_id })
+	# _.encodeStanza(...) @ Line #35561
+	# N(e,t)
+	_a = wap.class_o(jid=wap.WAPJID(w_server="s.whatsapp.net", w_type=0, w_user=None))
+	_x = wap.class_M(attrs={"to":_a, "type":"result", "id": parsed_dec.attrs['id']} ,\
+	content=None, tag="iq")
+	t = io.BytesIO()
+	wap.N(_x, t)
+	t.seek(0)
+	_buf = b'\x00' + t.read()
+	print(f'len > {len(_buf)}\n{_buf}')
 
-
-
-
-
+	try:
+		enc = client.noise_enc.encrypt(b'\x00'*12, _buf, b"")
+	except Exception as e:
+		print(f':. encryption failed {e}')
+	print(f'enc len > {len(enc)}')
+	client._send_frame(payload=enc)
 	qr_string = ref + "," + be(client.cstatic_key.public.data).decode() + ","\
 	+ be(get_Ed25519Key_bytes(client.cident_key.public)).decode() + ","\
 	+ client.adv_secret_key.decode()
@@ -479,4 +494,7 @@ if __name__ == "__main__":
 	qr.add_data(qr_string)
 	qr.make(fit=True)
 	qr.print_ascii(tty=True, invert=True)
+	while True:
+		resp2 = client._recv_frame()
+		print(resp2)
 
