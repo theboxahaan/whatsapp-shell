@@ -186,7 +186,7 @@ class WapJid:
 	
 	@staticmethod
 	def create(e, t):
-		return WAPJID(0, None, t)
+		return class_o(jid=WAPJID(0,None,t))
 
 	@staticmethod
 	def createAD():
