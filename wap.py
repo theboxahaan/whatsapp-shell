@@ -240,14 +240,16 @@ def H(e, t, n, r):
 	'''
 	function `H(e,t,n,r)` defined at Line #10985
 	'''
+	# print(f'val of n,r ~> {n,r}')
 	i = [None for _ in range(2*r - n) ]
-	for n in range(0, len(i) - 1, 2):
+	for _n in range(0, len(i) - 1, 2):
 		r = int.from_bytes(e.read(1), 'big')
-		i[n] = t[rshift(r, 4)]
-		i[n+1] = t[15 & r]
+		i[_n] = t[rshift(r, 4)]
+		i[_n+1] = t[15 & r]
 	if n:
 		n = int.from_bytes(e.read(1), 'big')
 		i[len(i) - 1] = t[rshift(n , 4)]
+	# print("".join(i))
 	return "".join(i)
 
 
@@ -262,11 +264,13 @@ def W(e, t, extra:bool):
 		return e.read(t)
 
 
-def F(e:io.BytesIO=None, t:bool=None):
+def F(e:io.BytesIO=None, t:bool=None, debug:bool=False):
 	'''
 	function `F(e,t)` on Line #10862
 	'''
 	n = int.from_bytes(e.read(1), 'big')
+	if debug:
+		print(f'val of `n` is > {n}')
 	if n == 0:
 		return None
 	if n == 248:
@@ -313,6 +317,8 @@ def F(e:io.BytesIO=None, t:bool=None):
 		return None
 	if n == 251:
 		t = int.from_bytes(e.read(1), 'big')
+		if debug:
+			print(f'vale of F_t is > {t}, {rshift(t,7)}')
 		return H(e, _E, rshift(t, 7), 127 & t)
 	if n <=0 or n >=240:
 		print('unable to decode WAPBuffer')
@@ -334,7 +340,10 @@ def F(e:io.BytesIO=None, t:bool=None):
 
 
 def K(e:io.BytesIO=None):
-	t = F(e, True)
+	'''
+	function returns the Key in a K,V pair
+	'''
+	t = F(e, True, False)
 	if not isinstance(t, str):
 		print('decode string got invalid argument')
 	return t
@@ -366,6 +375,7 @@ def Y(e:io.BytesIO=None):
 		if t != 249:
 			print('type byte is invalid')
 		n = int.from_bytes(e.read(2), 'big')
+	i = None
 	if n == 0:
 		print('failed to decode node')
 	
@@ -373,8 +383,12 @@ def Y(e:io.BytesIO=None):
 	r = {}
 	n -= 1
 	while n > 1:
+		# get the key
 		t = K(e)
-		i = F(e, True)
+		#print(f'K(e) returned > {t}')
+		# get the value
+		i = F(e, True, False)
+		#print(f'f(e) returned > {i}')
 		r[t] = i
 		n -= 2
 	assert n == 1
