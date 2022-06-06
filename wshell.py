@@ -451,9 +451,8 @@ if __name__ == "__main__":
 	
 	parsed_dec = wap.Y(dec_stream)
 	#print(f"parsed id ~> {parsed_dec.attrs['id']}")
-	#print(parsed_dec.attrs)
-	#TODO write a generator for the 6 refs obtained from server
-	ref_v = [parsed_dec.attrs['md'][0].content[i].content for i in range(6)]
+	print(parsed_dec.attrs)
+	ref_v = [parsed_dec.content[0].content[i].content for i in range(6)]
 	ref = ref_v[0]
 
 	# `castStanza` on Line #47522
