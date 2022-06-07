@@ -160,15 +160,23 @@ class Client(object):
 	#TODO remove `_` from name as it is being used outside the class
 	def _recv_frame(self) -> bytes:
 		"""
+		generator
 		receive `binary_frame` from server and parse it to return `data` bytes
 		@return payload bytes
 		"""
 		pyld = self.ws.recv_frame()
-		parsed_len = int.from_bytes(pyld.data[:3], "big")
-		print(f'<- size: {len(pyld.data)}; parsed len: {parsed_len}')
-		return pyld.data[3:3+parsed_len]
+		print(f'<- size: {len(pyld.data)}')
+		if len(pyld.data) <= 4:
+			return pyld.data
+		recv_stream = wap.create_stream(pyld.data)
+		while True:
+			pyld_len = int.from_bytes(recv_stream.read(3), 'big')
+			if pyld_len == 0:
+				break
+			else:
+				yield recv_stream.read(pyld_len)
 
-
+		
 	def _gen_signed_prekey(self, private_bytes:bytes=None):
 		"""
 		generates PreShareKeys and signs the public key with the Identity Key
@@ -427,7 +435,7 @@ class Client(object):
 		_l = self._send_frame(intro_bytes=self.WA_HEADER, payload=chello.SerializeToString())
 
 		# receive server hello
-		recv_data = self._recv_frame()
+		recv_data = next(self._recv_frame())
 		shello = msg_pb2.HandshakeMessage()
 
 		# parse from the 4th byte as first 3 bytes encode the length
@@ -449,7 +457,7 @@ if __name__ == "__main__":
 	client = Client(debug=False)
 	client.initiate_noise_handshake()
 	client.finish()
-	srv_resp = client._recv_frame()
+	srv_resp = next(client._recv_frame())
 	
 	# attempt to decode the data sent by the server
 	#FIXME write a method to do this properly not in the adhoc way it's done now
@@ -480,7 +488,7 @@ if __name__ == "__main__":
 	# _.encodeStanza(...) @ Line #35561
 	# N(e,t)
 	_a = wap.class_o(jid=wap.WAPJID(w_server='s.whatsapp.net', w_type=0, w_user=None))
-	_x = wap.class_M(attrs={"to":_a, "type":'result', "id": parsed_dec.attrs['id']}, content=None, tag="iq")
+	_x = wap.class_M(tag="iq", content=None, attrs={"to":_a, "type":'result', "id": parsed_dec.attrs['id']})
 	t = io.BytesIO()
 	wap.N(_x, t)
 	t.seek(0)
@@ -492,7 +500,8 @@ if __name__ == "__main__":
 	print(c.attrs)
 
 	try:
-		enc = client.noise_enc.encrypt(b'\x00'*12, _buf, b"")
+		enc = client.noise_enc.encrypt(client._gen_iv(client.noise_enc_counter), _buf, b"")
+		client.noise_enc_counter += 1
 	except Exception as e:
 		print(f':. encryption failed {e}')
 	# print(f'enc len > {len(enc)}')
@@ -513,9 +522,16 @@ if __name__ == "__main__":
 	qr.add_data(qr_string)
 	qr.make(fit=True)
 	qr.print_ascii(tty=True, invert=True)
+
 	while True:
-		resp2 = client._recv_frame()
-		dec = client.noise_dec.decrypt(client._gen_iv(client.noise_dec_counter), resp2, None)
-		client.noise_dec_counter+=1
-		# parse response
-		print(dec)
+		for resp in client._recv_frame():
+			if len(resp) > 4:
+				dec = client.noise_dec.decrypt(client._gen_iv(client.noise_dec_counter), resp, None)
+				client.noise_dec_counter+=1
+				# parse response
+				t = wap.create_stream(dec)
+				t.read(1)
+				s = wap.Y(t)
+				print(s.attrs, s.tag, s.content)
+			else:
+				print(resp)
