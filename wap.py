@@ -46,9 +46,9 @@ def D(e,t:io.BytesIO=None):
 	N(e.tag, t)
 	# print(':. wrote the tag to the buffer', e.attrs.keys())
 	if e.attrs is not None:
-		for n in e.attrs.keys():
-			G(n, t)
-			N(e.attrs[n], t)
+		for _n in e.attrs.keys():
+			G(_n, t)
+			N(e.attrs[_n], t)
 	r = e.content
 	if isinstance(r, bytes):
 		if len(r) < 256:
@@ -58,8 +58,8 @@ def D(e,t:io.BytesIO=None):
 			if len(r) < 65536:
 				t.write(b'\xf9')
 				t.write(len(r).to_bytes(2, 'big'))
-		for e in range(len(r)):
-			D(r[e] ,t)
+		for _e in range(len(r)):
+			D(r[_e] ,t)
 	else:
 		if r is not None:
 			N(r, t)
@@ -91,11 +91,11 @@ def G(e, t):
 	for entry in _L.DICTIONARIES:
 		k.append({entry[i]:i for i in range(len(entry))})
 
-	for n in range(len(k)):
-		r = k[n].get(e, None)
+	for _n in range(len(k)):
+		r = k[_n].get(e, None)
 		if r is not None:
 			h = [236, 237, 238, 239]
-			t.write(h[n].to_bytes(1, 'big'))
+			t.write(h[_n].to_bytes(1, 'big'))
 			t.write(r.to_bytes(1, 'big'))
 			return
 	
@@ -111,8 +111,8 @@ def G(e, t):
 				i |= 128
 			n.write(i.to_bytes(1, 'big'))
 			a = 0
-			for r in range(len(e)):
-				i = ord(e[r])
+			for _r in range(len(e)):
+				i = ord(e[_r])
 				o = None
 				# long ass if condition which if True, raise Error `Cannot nibble encode`
 				if 48 <= i and i <= 57:
@@ -129,9 +129,9 @@ def G(e, t):
 							o = i - 75
 				if o is None:
 					print('Cannot nibble encode')
-				if r % 2 == 0:
+				if _r % 2 == 0:
 					a = o << 4
-					if r == len(e) - 1:
+					if _r == len(e) - 1:
 						a |= 15
 						n.write(a.to_bytes(1, 'big'))
 				else:
@@ -201,6 +201,7 @@ class WapJid:
 		pass
 
 _E = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
+_y = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.', '�', '�', '�', '�']
 
 
 _C = SimpleNamespace(**{
@@ -312,9 +313,7 @@ def F(e:io.BytesIO=None, t:bool=None, debug:bool=False):
 		return _C.WapJid.createJidU(i, t, r)
 	if n == 255:
 		t = int.from_bytes(e.read(1), 'big')
-		print('need to implement >>>')
-		#return H(e, E, t )
-		return None
+		return H(e, _y, rshift(t, 7), 127 & t )
 	if n == 251:
 		t = int.from_bytes(e.read(1), 'big')
 		if debug:
@@ -391,11 +390,11 @@ def Y(e:io.BytesIO=None):
 		#print(f'f(e) returned > {i}')
 		r[t] = i
 		n -= 2
-	assert n == 1
-	i = F(e, False)
-	# assert something else ... dont care for now
-	#print(f'r > {r}')
-	#print(f'i > {i}')
+	if n == 1:
+		i = F(e, False)
+	if isinstance(i, class_o):
+		i = f'blank string for now nothing more'
+
 	return M(a,r,i)
 
 
