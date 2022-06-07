@@ -112,7 +112,7 @@ class Client(object):
 		
 		self.cident_key.public  = self.cident_key.private.public_key()
 
-		self.adv_secret_key = b"qYWqAYwCu/dgHLJ7NRn7r3we/c6CVjih/ddm1i0Xgo0=" #be(secrets.token_bytes(32))
+		self.adv_secret_key = be(secrets.token_bytes(32))
 
 		#------------------[CLIENT DICTS]-----------------#
 		# stand ins for cookies and databases
@@ -138,7 +138,8 @@ class Client(object):
 		opens a websocket connection with the server
 		"""
 		self.ws = websocket.WebSocket()
-		self.ws.connect(self.websocket_url, header=self.header, origin="https://web.whatsapp.com", host="web.whatsapp.com")
+		cookie_str = 'wa_lang_pref=en; wa_beta_version=production%2F1654038811%2F2.2220.8'
+		self.ws.connect(self.websocket_url, header=self.header, origin="https://web.whatsapp.com", host="web.whatsapp.com", cookie=cookie_str)
 
 
 	def _send_frame(self, intro_bytes:bytes=None, payload:bytes=None) -> int:
@@ -478,14 +479,17 @@ if __name__ == "__main__":
 	#                         "type": "result", "id": parsed_id })
 	# _.encodeStanza(...) @ Line #35561
 	# N(e,t)
-	_a = wap.class_o(jid=wap.WAPJID(w_server="s.whatsapp.net", w_type=0, w_user=None))
-	_x = wap.class_M(attrs={"to":_a, "type":"result", "id": parsed_dec.attrs['id']} ,\
-	content=None, tag="iq")
+	_a = wap.class_o(jid=wap.WAPJID(w_server='s.whatsapp.net', w_type=0, w_user=None))
+	_x = wap.class_M(attrs={"to":_a, "type":'result', "id": parsed_dec.attrs['id']}, content=None, tag="iq")
 	t = io.BytesIO()
 	wap.N(_x, t)
 	t.seek(0)
 	_buf = b'\x00' + t.read()
-	# print(f'len > {len(_buf)}\n{_buf}')
+
+	m = wap.create_stream(_buf)
+	m.read(1)
+	c = wap.Y(m)
+	print(c.attrs)
 
 	try:
 		enc = client.noise_enc.encrypt(b'\x00'*12, _buf, b"")
