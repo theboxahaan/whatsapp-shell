@@ -4,10 +4,10 @@ import json
 import math
 
 class WAPJID:
-	def __init__(self, w_type, w_user, w_server):
+	def __init__(self, w_server, w_type, w_user):
+		self.server = w_server
 		self.type = w_type
 		self.user = w_user
-		self.server = w_server
 
 class class_o:
 	def __init__(self, jid:WAPJID=None):

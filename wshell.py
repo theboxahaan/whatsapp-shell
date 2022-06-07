@@ -43,6 +43,19 @@ def get_Ed25519Key_bytes(key:Union[Ed25519PublicKey, Ed25519PrivateKey]=None) ->
 	return _tmp 
 
 
+
+class NoiseFrameSocket(object):
+	"""
+	class to encapsulate a connection that has been authenticated using a noise handhshake
+	"""
+	def __init__(self, ws):
+		self._ws = ws
+		self._noise_enc = None
+		self._noise_dec = None
+		self._noise_enc_counter = 0
+		self._noise_dec_counter = 0
+
+
 class Client(object):
 	"""
 	class to represent a client instance
@@ -99,7 +112,7 @@ class Client(object):
 		
 		self.cident_key.public  = self.cident_key.private.public_key()
 
-		self.adv_secret_key = be(secrets.token_bytes(32))
+		self.adv_secret_key = b"qYWqAYwCu/dgHLJ7NRn7r3we/c6CVjih/ddm1i0Xgo0=" #be(secrets.token_bytes(32))
 
 		#------------------[CLIENT DICTS]-----------------#
 		# stand ins for cookies and databases
@@ -113,6 +126,8 @@ class Client(object):
 		# messages respectively
 		self.noise_enc = None
 		self.noise_dec = None
+		self.noise_enc_counter = 0
+		self.noise_dec_counter = 0
 
 		if debug:
 			websocket.enableTrace(True)
@@ -123,7 +138,7 @@ class Client(object):
 		opens a websocket connection with the server
 		"""
 		self.ws = websocket.WebSocket()
-		self.ws.connect(self.websocket_url, header=self.header)
+		self.ws.connect(self.websocket_url, header=self.header, origin="https://web.whatsapp.com", host="web.whatsapp.com")
 
 
 	def _send_frame(self, intro_bytes:bytes=None, payload:bytes=None) -> int:
@@ -150,7 +165,7 @@ class Client(object):
 		pyld = self.ws.recv_frame()
 		parsed_len = int.from_bytes(pyld.data[:3], "big")
 		print(f'<- size: {len(pyld.data)}; parsed len: {parsed_len}')
-		return pyld.data[3:]
+		return pyld.data[3:3+parsed_len]
 
 
 	def _gen_signed_prekey(self, private_bytes:bytes=None):
@@ -439,7 +454,8 @@ if __name__ == "__main__":
 	#FIXME write a method to do this properly not in the adhoc way it's done now
 	# refer to `_handleCiphertext on Line #11528
 	try:
-		dec = client.noise_dec.decrypt(b'\x00'*12, srv_resp, b"")
+		dec = client.noise_dec.decrypt(client._gen_iv(client.noise_dec_counter), srv_resp, b"")
+		client.noise_dec_counter += 1
 		assert len(dec) == 588
 	except Exception as e:
 		print(f':. decryption failed {e}')
@@ -495,5 +511,7 @@ if __name__ == "__main__":
 	qr.print_ascii(tty=True, invert=True)
 	while True:
 		resp2 = client._recv_frame()
-		print(resp2)
-
+		dec = client.noise_dec.decrypt(client._gen_iv(client.noise_dec_counter), resp2, None)
+		client.noise_dec_counter+=1
+		# parse response
+		print(dec)
