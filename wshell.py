@@ -106,11 +106,15 @@ class Client(object):
 		self.cephemeral_key = X25519DH().generate_keypair(privatekey=ephemeral_private_bytes) 
 		
 		if ident_private_bytes is not None:
-			self.cident_key.private = Ed25519PrivateKey.from_private_bytes(ident_private_bytes)
+			#FIXME
+			#self.cident_key.private = Ed25519PrivateKey.from_private_bytes(ident_private_bytes)
+			self.cident_key = X25519DH().generate_keypair(privatekey = ident_private_bytes)
 		else:
-			self.cident_key.private = Ed25519PrivateKey.generate()
+			#FIXME - once gen_signed_prekey is fixed
+			raise NotImplementedError
+			#self.cident_key.private = Ed25519PrivateKey.generate()
 		
-		self.cident_key.public  = self.cident_key.private.public_key()
+		# self.cident_key.public  = self.cident_key.public_key()
 
 		self.adv_secret_key = be(secrets.token_bytes(32))
 
@@ -180,21 +184,31 @@ class Client(object):
 	def _gen_signed_prekey(self, private_bytes:bytes=None):
 		"""
 		generates PreShareKeys and signs the public key with the Identity Key
+		UPDATE
+		implements the ed25519 signing algo used by libsignal-protocol. It is different from
+		the Ed25519 signing used by other libraries - needs to be explored.
+		For now, harcoding the keypairs and generated signature
+		Ref-
+		`generateSignedPreKey` @ Line #5467
+		Notes-
+		The signature is on the payload - b'\x05' + self.prekey.public bytes using the cident key
 		"""
-		if private_bytes is not None:
-			self.prekey.private = Ed25519PrivateKey.from_private_bytes(private_bytes)
-		else:
-			self.prekey.private = Ed25519PrivateKey.generate()
+		# if private_bytes is not None:
+		# 	self.prekey.private = Ed25519PrivateKey.from_private_bytes(private_bytes)
+		# else:
+		# 	self.prekey.private = Ed25519PrivateKey.generate()
+		# 
+		# self.prekey.public = self.prekey.private.public_key()
+		# _pub_bytes = self.prekey.public.public_bytes(encoding=serialization.Encoding.Raw, 
+		# 													format=serialization.PublicFormat.Raw
+		# 													)
+		# self.prekey_sig = self.cident_key.private.sign(_pub_bytes)
+
+		# # put the keypair into the prekey store
+		# self.signed_prekey_store[self.prekey_id] = (self.prekey, self.prekey_sig)
 		
-		self.prekey.public = self.prekey.private.public_key()
-		_pub_bytes = self.prekey.public.public_bytes(encoding=serialization.Encoding.Raw, 
-															format=serialization.PublicFormat.Raw
-															)
-		self.prekey_sig = self.cident_key.private.sign(_pub_bytes)
-
-		# put the keypair into the prekey store
-		self.signed_prekey_store[self.prekey_id] = (self.prekey, self.prekey_sig)
-
+		self.prekey = X25519DH().generate_keypair(privatekey=PrivateKey(bd('SBG9MfUgT8Y04mAznHkSdtu7rLdYbhhIUr99fAmrHWI=')))
+		self.prekey_sig = bd('QNzmFe/9RbFDUrZULXmbg4/ps71iaF7OBBzWFg1ZP8GPr/o4k5KS/d7itZLdjgciWwcbgLsUsyVB9104TUGQAw==')
 
 
 	def _get_registration_info(self) -> tuple:
@@ -347,15 +361,20 @@ class Client(object):
 		pyld_spec = msg_pb2.ClientPayloadSpec()
 		proto_utils.update_protobuf(pyld_spec, proto_utils.defaults.ClientPayloadSpec)
 		proto_utils.update_protobuf(pyld_spec, t)
+		
+		# <-------------------------------------------->
+		#FIXME - hardcoded keys used
 		proto_utils.update_protobuf(pyld_spec, {
 			'devicePairingData': {
 				'buildHash': _r,
 				'companionProps': _a,
-				'eIdent': get_Ed25519Key_bytes(reg_info[1]),
+				# 'eIdent': get_Ed25519Key_bytes(reg_info[1]),
+				'eIdent': reg_info[1].data,
 				'eRegid': b'\x00\x00' + reg_info[0],
 				'eSkeyId': key_info[0].to_bytes(3, 'big'),
 				'eSkeySig': key_info[3],
-				'eSkeyVal': get_Ed25519Key_bytes(key_info[1])
+				# 'eSkeyVal': get_Ed25519Key_bytes(key_info[1])
+				'eSkeyVal': key_info[1].data
 			}
 		})
 		return pyld_spec.SerializeToString()
@@ -454,7 +473,10 @@ class Client(object):
 		
 	
 if __name__ == "__main__":
-	client = Client(debug=False)
+	
+	#FIXME - using hardcoded cident key
+
+	client = Client(debug=False, ident_private_bytes=PrivateKey(bd('yLkFRBVtOPor9k1afCPZHEh+uTA4D9btPdXBa2M+NVc=')))
 	client.initiate_noise_handshake()
 	client.finish()
 	srv_resp = next(client._recv_frame())
@@ -506,8 +528,10 @@ if __name__ == "__main__":
 		print(f':. encryption failed {e}')
 	# print(f'enc len > {len(enc)}')
 	client._send_frame(payload=enc)
+
+	#FIXME harcoded keys used
 	qr_string = ref + "," + be(client.cstatic_key.public.data).decode() + ","\
-	+ be(get_Ed25519Key_bytes(client.cident_key.public)).decode() + ","\
+	+ be(client.cident_key.public.data).decode() + ","\
 	+ client.adv_secret_key.decode()
 
 	print('qr string >', qr_string)
