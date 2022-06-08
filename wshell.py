@@ -17,6 +17,9 @@ from typing import Union
 import msg_pb2
 import proto_utils
 import wap
+import axolotl_curve25519 as curve
+
+
 
 def get_Ed25519Key_bytes(key:Union[Ed25519PublicKey, Ed25519PrivateKey]=None) -> bytes:
 	#TODO migrate some stuff to `utils.py` 
@@ -106,16 +109,9 @@ class Client(object):
 		self.cephemeral_key = X25519DH().generate_keypair(privatekey=ephemeral_private_bytes) 
 		
 		if ident_private_bytes is not None:
-			#FIXME
-			#self.cident_key.private = Ed25519PrivateKey.from_private_bytes(ident_private_bytes)
-			self.cident_key = X25519DH().generate_keypair(privatekey = ident_private_bytes)
-		else:
-			#FIXME - once gen_signed_prekey is fixed
-			raise NotImplementedError
-			#self.cident_key.private = Ed25519PrivateKey.generate()
+			ident_private_bytes = PrivateKey(ident_private_bytes)
+		self.cident_key = X25519DH().generate_keypair(privatekey=ident_private_bytes)
 		
-		# self.cident_key.public  = self.cident_key.public_key()
-
 		self.adv_secret_key = be(secrets.token_bytes(32))
 
 		#------------------[CLIENT DICTS]-----------------#
@@ -143,7 +139,8 @@ class Client(object):
 		"""
 		self.ws = websocket.WebSocket()
 		cookie_str = 'wa_lang_pref=en; wa_beta_version=production%2F1654038811%2F2.2220.8'
-		self.ws.connect(self.websocket_url, header=self.header, origin="https://web.whatsapp.com", host="web.whatsapp.com", cookie=cookie_str)
+		self.ws.connect(self.websocket_url, header=self.header, origin="https://web.whatsapp.com",\
+		host="web.whatsapp.com", cookie=cookie_str)
 
 
 	def _send_frame(self, intro_bytes:bytes=None, payload:bytes=None) -> int:
@@ -187,29 +184,16 @@ class Client(object):
 		UPDATE
 		implements the ed25519 signing algo used by libsignal-protocol. It is different from
 		the Ed25519 signing used by other libraries - needs to be explored.
-		For now, harcoding the keypairs and generated signature
 		Ref-
 		`generateSignedPreKey` @ Line #5467
 		Notes-
 		The signature is on the payload - b'\x05' + self.prekey.public bytes using the cident key
 		"""
-		# if private_bytes is not None:
-		# 	self.prekey.private = Ed25519PrivateKey.from_private_bytes(private_bytes)
-		# else:
-		# 	self.prekey.private = Ed25519PrivateKey.generate()
-		# 
-		# self.prekey.public = self.prekey.private.public_key()
-		# _pub_bytes = self.prekey.public.public_bytes(encoding=serialization.Encoding.Raw, 
-		# 													format=serialization.PublicFormat.Raw
-		# 													)
-		# self.prekey_sig = self.cident_key.private.sign(_pub_bytes)
-
-		# # put the keypair into the prekey store
-		# self.signed_prekey_store[self.prekey_id] = (self.prekey, self.prekey_sig)
-		
-		self.prekey = X25519DH().generate_keypair(privatekey=PrivateKey(bd('SBG9MfUgT8Y04mAznHkSdtu7rLdYbhhIUr99fAmrHWI=')))
-		self.prekey_sig = bd('QNzmFe/9RbFDUrZULXmbg4/ps71iaF7OBBzWFg1ZP8GPr/o4k5KS/d7itZLdjgciWwcbgLsUsyVB9104TUGQAw==')
-
+		#TODO implement axolotl.curve as a standalone .py script or atleast investigate those
+		# bindings to create my own
+		self.prekey = X25519DH().generate_keypair(privatekey = private_bytes)
+		self.prekey_sig = curve.calculateSignature(secrets.token_bytes(64), self.cident_key.private.data,\
+		b'\x05' + self.prekey.public.data)
 
 	def _get_registration_info(self) -> tuple:
 		"""
@@ -337,8 +321,8 @@ class Client(object):
 		# this is the b64encoded string returned by memoizeWithArgs("2.2218.8")
 		# on Line #60393
 		# UPDATE
-		# - memoizeWithArgs("2.2218.8") basically maps the version no to its MD5 hash
-		# - _r = MD5("2.2218.8")
+		# - memoizeWithArgs("2.2220.8") basically maps the version no to its MD5 hash
+		# - _r = MD5("2.2220.8")
 		# - a.k.a as the build hash
 
 		if reg_info is None:
@@ -363,17 +347,14 @@ class Client(object):
 		proto_utils.update_protobuf(pyld_spec, t)
 		
 		# <-------------------------------------------->
-		#FIXME - hardcoded keys used
 		proto_utils.update_protobuf(pyld_spec, {
 			'devicePairingData': {
 				'buildHash': _r,
 				'companionProps': _a,
-				# 'eIdent': get_Ed25519Key_bytes(reg_info[1]),
 				'eIdent': reg_info[1].data,
 				'eRegid': b'\x00\x00' + reg_info[0],
 				'eSkeyId': key_info[0].to_bytes(3, 'big'),
 				'eSkeySig': key_info[3],
-				# 'eSkeyVal': get_Ed25519Key_bytes(key_info[1])
 				'eSkeyVal': key_info[1].data
 			}
 		})
@@ -474,15 +455,11 @@ class Client(object):
 	
 if __name__ == "__main__":
 	
-	#FIXME - using hardcoded cident key
-
-	client = Client(debug=False, ident_private_bytes=PrivateKey(bd('yLkFRBVtOPor9k1afCPZHEh+uTA4D9btPdXBa2M+NVc=')))
+	client = Client(debug=False)
 	client.initiate_noise_handshake()
 	client.finish()
 	srv_resp = next(client._recv_frame())
 	
-	# attempt to decode the data sent by the server
-	#FIXME write a method to do this properly not in the adhoc way it's done now
 	# refer to `_handleCiphertext on Line #11528
 	try:
 		dec = client.noise_dec.decrypt(client._gen_iv(client.noise_dec_counter), srv_resp, b"")
@@ -529,7 +506,6 @@ if __name__ == "__main__":
 	# print(f'enc len > {len(enc)}')
 	client._send_frame(payload=enc)
 
-	#FIXME harcoded keys used
 	qr_string = ref + "," + be(client.cstatic_key.public.data).decode() + ","\
 	+ be(client.cident_key.public.data).decode() + ","\
 	+ client.adv_secret_key.decode()
