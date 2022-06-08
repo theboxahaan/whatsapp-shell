@@ -15,7 +15,7 @@ $ python wshell.py
 	- [x] Decrypt the server response on Noise Handshake successful
 	- [x] Extract the correct `ref` string from the decrypted parsed data
 	- [x] Construct the QR code
-	- [ ] Scan and test
+	- [x] Scan and test
   
             Scanning shows an error msg saying that device could not be linked now. However,
             our client gets partially linked as it throws a max linking error after ~5 tries.
@@ -23,8 +23,11 @@ $ python wshell.py
 	- [x] Write a `WapParser` (Line #11128)
 	- [x] Write a WapEncoder (Line #10727)
 	- [x] A 37 byte frame is sent to the server. ~~what is it ?~~ -- possibly called the `result`
-	- [ ] A ~250 byte response is sent from the server which I don't get yet. Get that msg
-- [ ] Setup the Ratchet
+	- [x] A ~250 byte response is sent from the server which I don't get yet. Get that msg
+	- [ ] Repair the parser `Y`
+- [ ] Refactor `wap.py`
+- [ ] Refactor `wshell.py`
+- [ ] Replicate `libsignal-protocol`'s signing algo and see how it is diff from `DJM`
 - [ ] Retrieve Messages
 
 
