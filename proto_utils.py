@@ -59,7 +59,7 @@ class defaults:
 			'device': "Desktop",
 			'appVersion': {
 				'primary': 2,
-				'secondary': 2218,
+				'secondary': 2220,
 				'tertiary': 8
 			}
 		},	

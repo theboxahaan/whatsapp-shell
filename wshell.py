@@ -335,7 +335,7 @@ class Client(object):
 			t = {'passive':False, 'pull':False}
 
 		_digest = hashes.Hash(hashes.MD5())
-		_digest.update(b"2.2218.8")
+		_digest.update(b"2.2220.8")
 		_r = _digest.finalize()
 
 		# build client side protobufs
