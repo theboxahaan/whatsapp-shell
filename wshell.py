@@ -3,13 +3,12 @@ import secrets
 import gzip
 import qrcode
 import io
-from types import SimpleNamespace
+import traceback
 from base64 import b64encode as be
 from base64 import b64decode as bd
 from dissononce.dh.x25519.x25519 import X25519DH, PublicKey, PrivateKey
 from dissononce.dh.keypair import KeyPair
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
-from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from typing import Union
@@ -18,45 +17,7 @@ import msg_pb2
 import proto_utils
 import wap
 import axolotl_curve25519 as curve
-
-
-
-def get_Ed25519Key_bytes(key:Union[Ed25519PublicKey, Ed25519PrivateKey]=None) -> bytes:
-	#TODO migrate some stuff to `utils.py` 
-	"""
-	extract raw bytes from Ed25519Public/PrivateKey object
-	@arg key: key from which raw bytes are to be extracted
-	@return raw bytes of `key`
-	"""
-	if isinstance(key, Ed25519PublicKey):
-		_tmp = key.public_bytes(
-						encoding=serialization.Encoding.Raw,
-						format=serialization.PublicFormat.Raw
-					)
-	elif isinstance(key, Ed25519PrivateKey):
-		_tmp = key.private_bytes(
-						encoding=serialization.Encoding.Raw,
-						format=serialization.PrivateFormat.Raw,
-						encryption_algorithm=serialization.NoEncryption()
-					)
-	else:
-		print(f":. incorrect type key > {type(key)}")
-		_tmp = None
-	
-	return _tmp 
-
-
-
-class NoiseFrameSocket(object):
-	"""
-	class to encapsulate a connection that has been authenticated using a noise handhshake
-	"""
-	def __init__(self, ws):
-		self._ws = ws
-		self._noise_enc = None
-		self._noise_dec = None
-		self._noise_enc_counter = 0
-		self._noise_dec_counter = 0
+import utils
 
 
 class Client(object):
@@ -94,11 +55,9 @@ class Client(object):
 		self.recovery_token = recovery_token or secrets.token_bytes(24)
 		self.reg_id         = reg_id or secrets.token_bytes(2)
 		self.ws             = ws
+		self.adv_secret_key = be(secrets.token_bytes(32))
 
 		#------------------[CLIENT KEYS]-----------------#
-		self.cident_key     = SimpleNamespace(public=None, private=None)
-		self.prekey         = SimpleNamespace(public=None, private=None)
-		
 		if static_private_bytes is not None:
 			# set by refreshNoiseCredentials() Line #61186
 			static_private_bytes = PrivateKey(static_private_bytes)
@@ -112,7 +71,6 @@ class Client(object):
 			ident_private_bytes = PrivateKey(ident_private_bytes)
 		self.cident_key = X25519DH().generate_keypair(privatekey=ident_private_bytes)
 		
-		self.adv_secret_key = be(secrets.token_bytes(32))
 
 		#------------------[CLIENT DICTS]-----------------#
 		# stand ins for cookies and databases
@@ -286,7 +244,7 @@ class Client(object):
 			self.counter += 1
 			return _enc
 		except Exception as e:
-			print(f":. encryption failed {e}")
+			print(f":. encryption failed\n {traceback.print_exc()}")
 			raise e
 
 
@@ -304,7 +262,7 @@ class Client(object):
 			self.counter += 1
 			return _dec
 		except Exception as e:
-			print(f":. decryption failed {e}")
+			print(f":. decryption failed\n {traceback.print_exc()}")
 			raise e
 
 
@@ -346,7 +304,6 @@ class Client(object):
 		proto_utils.update_protobuf(pyld_spec, proto_utils.defaults.ClientPayloadSpec)
 		proto_utils.update_protobuf(pyld_spec, t)
 		
-		# <-------------------------------------------->
 		proto_utils.update_protobuf(pyld_spec, {
 			'devicePairingData': {
 				'buildHash': _r,
@@ -438,7 +395,6 @@ class Client(object):
 		recv_data = next(self._recv_frame())
 		shello = msg_pb2.HandshakeMessage()
 
-		# parse from the 4th byte as first 3 bytes encode the length
 		shello.ParseFromString(recv_data)
 		self._process_server_hello(shello.serverHello)
 
@@ -461,15 +417,12 @@ if __name__ == "__main__":
 	srv_resp = next(client._recv_frame())
 	
 	# refer to `_handleCiphertext on Line #11528
-	try:
-		dec = client.noise_dec.decrypt(client._gen_iv(client.noise_dec_counter), srv_resp, b"")
-		client.noise_dec_counter += 1
-		assert len(dec) == 588
-	except Exception as e:
-		print(f':. decryption failed {e}')
+	dec = client.noise_dec.decrypt(client._gen_iv(client.noise_dec_counter), srv_resp, b"")
+	client.noise_dec_counter += 1
+	assert len(dec) == 588
 
 	dec_stream = wap.create_stream(dec)
-	if dec_stream.read(1) != b'\x00':
+	if int.from_bytes(dec_stream.read(1), 'big') & 2 != 0:
 		print(f'might need to gzip inflate')
 		raise NotImplementedError
 	
@@ -498,12 +451,9 @@ if __name__ == "__main__":
 	c = wap.Y(m)
 	print(c.attrs)
 
-	try:
-		enc = client.noise_enc.encrypt(client._gen_iv(client.noise_enc_counter), _buf, b"")
-		client.noise_enc_counter += 1
-	except Exception as e:
-		print(f':. encryption failed {e}')
-	# print(f'enc len > {len(enc)}')
+	enc = client.noise_enc.encrypt(client._gen_iv(client.noise_enc_counter), _buf, b"")
+	client.noise_enc_counter += 1
+
 	client._send_frame(payload=enc)
 
 	qr_string = ref + "," + be(client.cstatic_key.public.data).decode() + ","\
