@@ -4,10 +4,10 @@ import json
 import math
 
 class WAPJID:
-	def __init__(self, w_server, w_type, w_user):
-		self.server = w_server
-		self.type = w_type
-		self.user = w_user
+	def __init__(self, kwargs:dict=None):
+		for k,v in kwargs.items():
+			setattr(self, k, v)
+
 
 class class_o:
 	def __init__(self, jid:WAPJID=None):
@@ -186,7 +186,7 @@ class WapJid:
 	
 	@staticmethod
 	def create(e, t):
-		return class_o(jid=WAPJID(0,None,t))
+		return class_o(jid=WAPJID({'type': 0, 'user':None, 'server':t}))
 
 	@staticmethod
 	def createAD():
@@ -197,8 +197,9 @@ class WapJid:
 		pass
 	
 	@staticmethod
-	def createJidU():
-		pass
+	def createJidU(e,t,n):
+		return class_o(jid = WAPJID({'type':1, 'user':e, 'device':n or 0, 'domainType': t or 0}))
+
 
 _E = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
 _y = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.', '�', '�', '�', '�']
@@ -259,7 +260,7 @@ def W(e, t, extra:bool):
 	function at Line #10980
 	'''
 	# print('extra> ', extra)
-	if extra is not None:
+	if extra is not None and extra is not False:
 		return e.read(t).decode('utf-8')
 	else:
 		return e.read(t)

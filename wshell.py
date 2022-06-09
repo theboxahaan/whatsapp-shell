@@ -431,7 +431,6 @@ if __name__ == "__main__":
 	print(parsed_dec.attrs)
 	ref_v = [parsed_dec.content[0].content[i].content for i in range(6)]
 	ref = ref_v[0]
-
 	# `castStanza` on Line #47522
 	# Convert `M` type wap object to a buffer using function `N(e, t)` on Line #10727
 
@@ -439,24 +438,19 @@ if __name__ == "__main__":
 	#                         "type": "result", "id": parsed_id })
 	# _.encodeStanza(...) @ Line #35561
 	# N(e,t)
-	_a = wap.class_o(jid=wap.WAPJID(w_server='s.whatsapp.net', w_type=0, w_user=None))
+	_a = wap.class_o(jid=wap.WAPJID({'server':'s.whatsapp.net', 'type':0, 'user':None}))
 	_x = wap.class_M(tag="iq", content=None, attrs={"to":_a, "type":'result', "id": parsed_dec.attrs['id']})
 	t = io.BytesIO()
 	wap.N(_x, t)
 	t.seek(0)
 	_buf = b'\x00' + t.read()
 
-	m = wap.create_stream(_buf)
-	m.read(1)
-	c = wap.Y(m)
-	print(c.attrs)
-
 	enc = client.noise_enc.encrypt(client._gen_iv(client.noise_enc_counter), _buf, b"")
 	client.noise_enc_counter += 1
 
 	client._send_frame(payload=enc)
 
-	qr_string = ref + "," + be(client.cstatic_key.public.data).decode() + ","\
+	qr_string = ref.decode() + "," + be(client.cstatic_key.public.data).decode() + ","\
 	+ be(client.cident_key.public.data).decode() + ","\
 	+ client.adv_secret_key.decode()
 
