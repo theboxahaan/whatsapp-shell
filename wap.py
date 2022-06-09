@@ -186,7 +186,7 @@ class WapJid:
 	
 	@staticmethod
 	def create(e, t):
-		return class_o(jid=WAPJID({'type': 0, 'user':None, 'server':t}))
+		return class_o(jid=WAPJID({'type':_C.WAP_JID_SUBTYPE.JID, 'user':e, 'server':t}))
 
 	@staticmethod
 	def createAD():
@@ -198,7 +198,8 @@ class WapJid:
 	
 	@staticmethod
 	def createJidU(e,t,n):
-		return class_o(jid = WAPJID({'type':1, 'user':e, 'device':n or 0, 'domainType': t or 0}))
+		return class_o(jid = WAPJID({'type':_C.WAP_JID_SUBTYPE.JID_U,
+		'user':e, 'device':n or 0, 'domainType': t or 0}))
 
 
 _E = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
