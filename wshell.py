@@ -276,7 +276,7 @@ class Client(object):
 		
 		payload : @return proto
 		"""
-		# this is the b64encoded string returned by memoizeWithArgs("2.2218.8")
+		# this is the b64encoded string returned by memoizeWithArgs("2.2220.8")
 		# on Line #60393
 		# UPDATE
 		# - memoizeWithArgs("2.2220.8") basically maps the version no to its MD5 hash
