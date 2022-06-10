@@ -13,14 +13,35 @@ class class_o:
 	def __init__(self, jid:WAPJID=None):
 		self._jid = jid
 
-class class_M:
+
+class WAPNode:
 	def __init__(self, tag:str=None, attrs:dict=None, content=None):
 		self.tag = tag
 		self.attrs = attrs
 		self.content = content
-	#def __repr__(self):
-	#	return f'{"+"*50}\ntag > {self.tag}\nattrs > {self.attrs}\ncontent > {self.content}'\
-	#	+ f'\n{"+"*50}'
+
+
+class WapJid:
+	def __init__(self):
+		pass	
+	
+	@staticmethod
+	def create(e, t):
+		return class_o(jid=WAPJID({'type':_C.WAP_JID_SUBTYPE.JID, 'user':e, 'server':t}))
+
+	@staticmethod
+	def createAD():
+		pass
+	
+	@staticmethod
+	def createFbJid():
+		pass
+	
+	@staticmethod
+	def createJidU(e,t,n):
+		return class_o(jid = WAPJID({'type':_C.WAP_JID_SUBTYPE.JID_U,
+		'user':e, 'device':n or 0, 'domainType': t or 0}))
+
 
 def D(e,t:io.BytesIO=None):
 	'''
@@ -148,7 +169,7 @@ def N(e, t:io.BytesIO=None):
 	# print(f'e > {e}')
 	if e is None:
 		t.write(b'\x00')
-	elif isinstance(e, class_M):
+	elif isinstance(e, WAPNode):
 		D(e,t)
 	elif isinstance(e, class_o):
 		n = e._jid
@@ -179,27 +200,6 @@ def rshift(val, n):
 	source: https://stackoverflow.com/questions/5832982/how-to-get-the-logical-right-binary-shift-in-python
 	"""
 	return (val % 0x100000000) >> n
-
-class WapJid:
-	def __init__(self):
-		pass	
-	
-	@staticmethod
-	def create(e, t):
-		return class_o(jid=WAPJID({'type':_C.WAP_JID_SUBTYPE.JID, 'user':e, 'server':t}))
-
-	@staticmethod
-	def createAD():
-		pass
-	
-	@staticmethod
-	def createFbJid():
-		pass
-	
-	@staticmethod
-	def createJidU(e,t,n):
-		return class_o(jid = WAPJID({'type':_C.WAP_JID_SUBTYPE.JID_U,
-		'user':e, 'device':n or 0, 'domainType': t or 0}))
 
 
 _E = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
@@ -362,7 +362,7 @@ def M(e, *args):
 		n = args[1]
 	else:
 		n = None
-	return class_M(tag=e, attrs=t, content=n)
+	return WAPNode(tag=e, attrs=t, content=n)
 
 
 def Y(e:io.BytesIO=None):

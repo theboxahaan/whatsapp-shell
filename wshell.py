@@ -439,7 +439,7 @@ if __name__ == "__main__":
 	# _.encodeStanza(...) @ Line #35561
 	# N(e,t)
 	_a = wap.WapJid.create(e=None, t='s.whatsapp.net')
-	_x = wap.class_M(tag="iq", content=None, attrs={"to":_a, "type":'result', "id": parsed_dec.attrs['id']})
+	_x = wap.WAPNode(tag="iq", content=None, attrs={"to":_a, "type":'result', "id": parsed_dec.attrs['id']})
 	t = io.BytesIO()
 	wap.N(_x, t)
 	t.seek(0)
