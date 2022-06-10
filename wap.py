@@ -3,6 +3,11 @@ from types import SimpleNamespace
 import json
 import math
 
+
+_E = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
+_y = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.', '�', '�', '�', '�']
+
+
 class WapNode:
 	"""as of now rerpresents a WAP binary XML node"""
 	def __init__(self, tag:str=None, attrs:dict=None, content=None):
@@ -210,10 +215,6 @@ def rshift(val, n):
 	return (val % 0x100000000) >> n
 
 
-_E = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
-_y = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.', '�', '�', '�', '�']
-
-
 _C = SimpleNamespace(**{
 	'DOMAIN_TYPE': SimpleNamespace(**{
 		'LID': 1,
@@ -384,6 +385,7 @@ def Y(e:io.BytesIO=None):
 		if t != 249:
 			print('type byte is invalid')
 		n = int.from_bytes(e.read(2), 'big')
+	
 	i = None
 	if n == 0:
 		print('failed to decode node')
@@ -396,14 +398,15 @@ def Y(e:io.BytesIO=None):
 		t = K(e)
 		#print(f'K(e) returned > {t}')
 		# get the value
-		i = F(e, True, False)
+		_i = F(e, True, False)
 		#print(f'f(e) returned > {i}')
-		r[t] = i
+		r[t] = _i
 		n -= 2
 	if n == 1:
 		i = F(e, False)
 	if isinstance(i, WapJid):
-		i = f'blank string for now nothing more'
+		# i = String(i)
+		i = f'empty string for now'
 
 	return M(a,r,i)
 
