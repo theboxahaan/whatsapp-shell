@@ -14,7 +14,7 @@ class class_o:
 		self._jid = jid
 
 
-class WAPNode:
+class WapNode:
 	def __init__(self, tag:str=None, attrs:dict=None, content=None):
 		self.tag = tag
 		self.attrs = attrs
@@ -169,7 +169,7 @@ def N(e, t:io.BytesIO=None):
 	# print(f'e > {e}')
 	if e is None:
 		t.write(b'\x00')
-	elif isinstance(e, WAPNode):
+	elif isinstance(e, WapNode):
 		D(e,t)
 	elif isinstance(e, class_o):
 		n = e._jid
@@ -362,7 +362,7 @@ def M(e, *args):
 		n = args[1]
 	else:
 		n = None
-	return WAPNode(tag=e, attrs=t, content=n)
+	return WapNode(tag=e, attrs=t, content=n)
 
 
 def Y(e:io.BytesIO=None):
