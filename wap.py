@@ -28,12 +28,15 @@ class WapJid:
 		return cls(jid={'type':_C.WAP_JID_SUBTYPE.JID, 'user':user, 'server':server})
 
 	@classmethod
-	def createAD():
-		raise NotImplementedError
-	
+	def createAD(user, agent, device):
+		return cls({ 'type': _C.WAP_JID_SUBTYPE.JID_AD,
+									'user': user, 'device': device or 0, 'agent': agent or 0,
+									'domainType': _C.DOMAIN_TYPE.WHATSAPP	})
+
+
 	@classmethod
-	def createFbJid():
-		raise NotImplementedError
+	def createFbJid(user, device):
+		return cls(jid={'type':_C.WAP_JID_SUBTYPE.JID_FB, 'user':user, 'device':device or 0})
 
 	@classmethod
 	def createJidU(cls, user, domain_type, device):
