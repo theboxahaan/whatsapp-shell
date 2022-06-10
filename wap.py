@@ -3,44 +3,49 @@ from types import SimpleNamespace
 import json
 import math
 
-class WAPJID:
-	def __init__(self, kwargs:dict=None):
-		for k,v in kwargs.items():
-			setattr(self, k, v)
-
-
-class class_o:
-	def __init__(self, jid:WAPJID=None):
-		self._jid = jid
-
-
 class WapNode:
+	"""as of now rerpresents a WAP binary XML node"""
 	def __init__(self, tag:str=None, attrs:dict=None, content=None):
 		self.tag = tag
 		self.attrs = attrs
 		self.content = content
+	
+	def __repr__(self):
+		return f'tag> {self.tag};\nattrs> {self.attrs};\ncontent> {self.content}'
 
 
 class WapJid:
-	def __init__(self):
-		pass	
-	
-	@staticmethod
-	def create(e, t):
-		return class_o(jid=WAPJID({'type':_C.WAP_JID_SUBTYPE.JID, 'user':e, 'server':t}))
+	"""
+	this class encapsulates `class_o` or class `o` as it is presented in the JS client
+	@ Line #11063 to make the class design a bit cleaner
+	"""
 
-	@staticmethod
+	def __init__(self, jid:dict=None):
+		self._jid = SimpleNamespace(**jid)
+
+	@classmethod
+	def create(cls, user, server):
+		return cls(jid={'type':_C.WAP_JID_SUBTYPE.JID, 'user':user, 'server':server})
+
+	@classmethod
 	def createAD():
-		pass
+		raise NotImplementedError
 	
-	@staticmethod
+	@classmethod
 	def createFbJid():
-		pass
+		raise NotImplementedError
+
+	@classmethod
+	def createJidU(cls, user, domain_type, device):
+		return cls(jid ={'type':_C.WAP_JID_SUBTYPE.JID_U,
+		'user':user, 'device':device or 0, 'domainType': domain_type or 0})
 	
-	@staticmethod
-	def createJidU(e,t,n):
-		return class_o(jid = WAPJID({'type':_C.WAP_JID_SUBTYPE.JID_U,
-		'user':e, 'device':n or 0, 'domainType': t or 0}))
+	def get_inner_jid(self):
+		return self._jid
+
+	def __repr__(self):
+		return str(self._jid)
+
 
 
 def D(e,t:io.BytesIO=None):
@@ -171,7 +176,7 @@ def N(e, t:io.BytesIO=None):
 		t.write(b'\x00')
 	elif isinstance(e, WapNode):
 		D(e,t)
-	elif isinstance(e, class_o):
+	elif isinstance(e, WapJid):
 		n = e._jid
 		if n.type == _C.WAP_JID_SUBTYPE.JID_U:
 			raise NotImplementedError
@@ -394,7 +399,7 @@ def Y(e:io.BytesIO=None):
 		n -= 2
 	if n == 1:
 		i = F(e, False)
-	if isinstance(i, class_o):
+	if isinstance(i, WapJid):
 		i = f'blank string for now nothing more'
 
 	return M(a,r,i)
