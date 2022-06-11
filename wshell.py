@@ -71,13 +71,11 @@ class Client(object):
 			ident_private_bytes = PrivateKey(ident_private_bytes)
 		self.cident_key = X25519DH().generate_keypair(privatekey=ident_private_bytes)
 		
-
 		#------------------[CLIENT DICTS]-----------------#
 		# stand ins for cookies and databases
 		self.meta                 = {"signal_last_spk_id": None}
 		self.signed_prekey_store  = {}
 		self._id_to_signed_prekey = {}
-
 
 		#------------------[NOISE CIPHERS]----------------#
 		# the noise socket's AESGCM objects used for encryption and decryption of 
@@ -116,6 +114,7 @@ class Client(object):
 		self.ws.send_binary(final_pyld)
 		return len(final_pyld)
 
+
 	#TODO remove `_` from name as it is being used outside the class
 	def _recv_frame(self) -> bytes:
 		"""
@@ -135,7 +134,7 @@ class Client(object):
 			else:
 				yield recv_stream.read(pyld_len)
 
-		
+
 	def _gen_signed_prekey(self, private_bytes:bytes=None):
 		"""
 		generates PreShareKeys and signs the public key with the Identity Key
@@ -153,24 +152,19 @@ class Client(object):
 		self.prekey_sig = curve.calculateSignature(secrets.token_bytes(64), self.cident_key.private.data,\
 		b'\x05' + self.prekey.public.data)
 
+
 	def _get_registration_info(self) -> tuple:
-		"""
-		get registration info
-		"""
+		""" get registration info """
 		return (self.reg_id, self.cident_key.public, self.cident_key.private)
 
 
 	def _get_signed_prekey(self) -> tuple:
-		"""
-		get prekey w/ signature
-		"""
+		""" get prekey w/ signature """
 		return (self.prekey_id, self.prekey.public, self.prekey.private, self.prekey_sig)
 
 
 	def _rotate_signed_prekey(self):
-		"""
-		set prekey id and set in meta dict
-		"""
+		""" set prekey id and set in meta dict """
 		self.prekey_id += 1
 		self.meta['signal_last_spk_id'] = self.prekey_id
 
@@ -195,6 +189,7 @@ class Client(object):
 		hkdf = HKDF(algorithm=hashes.SHA256(), length=64, salt=salt, info=None)
 		key = hkdf.derive(key_material)
 		return key
+
 
 	def _mix_into_key(self, salt:bytes=None, key_material:bytes=None):
 		"""
@@ -246,7 +241,6 @@ class Client(object):
 		except Exception as e:
 			print(f":. encryption failed\n {traceback.print_exc()}")
 			raise e
-
 
 
 	def _decrypt(self, ct:bytes=None) -> bytes:
@@ -317,6 +311,7 @@ class Client(object):
 		})
 		return pyld_spec.SerializeToString()
 
+
 	def _process_server_hello(self, shello:msg_pb2.ServerHello=None):
 		"""
 		process server hello on line  61035 a.k.a `function w(e, t, n)`
@@ -333,6 +328,7 @@ class Client(object):
 		_dec_payload = self._decrypt(shello.payload)
 		
 		# verifyChainCertificateWA6 Line #61025 skipped
+
 
 	def _send_client_finish(self):
 
@@ -356,11 +352,8 @@ class Client(object):
 		_l = self._send_frame(payload=fin_msg.SerializeToString())
 
 
-
 	def client_dump(self) -> str:
-		"""
-		repr of client object
-		"""
+		""" repr of client object """
 		return f"\n****** CLIENT STATE BEG ******\
 					\nprekey_id      : {self.prekey_id}\
 					\ncounter        : {self.counter}\
@@ -375,6 +368,7 @@ class Client(object):
 {self.cephemeral_key.private.data[:4]}...\
 					\nprekey_sig     : {self.prekey_sig[:4]}...\
 					\n****** CLIENT STATE END ******\n"
+
 
 	def initiate_noise_handshake(self):
 		
@@ -408,7 +402,8 @@ class Client(object):
 		_k = self._extract_with_salt_and_expand(self.salt, b"")
 		self.noise_enc, self.noise_dec = AESGCM(_k[:32]), AESGCM(_k[32:])
 		
-	
+
+
 if __name__ == "__main__":
 	
 	client = Client(debug=False)
