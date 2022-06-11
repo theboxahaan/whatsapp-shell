@@ -86,12 +86,12 @@ def D(e,t:io.BytesIO=None):
 		if n < 65536:
 			t.write(b'\xf9')
 			t.write(n.to_bytes(2, 'big'))
-	N(e.tag, t)
+	wap_encode(e.tag, t)
 	# print(':. wrote the tag to the buffer', e.attrs.keys())
 	if e.attrs is not None:
 		for _n in e.attrs.keys():
 			G(_n, t)
-			N(e.attrs[_n], t)
+			wap_encode(e.attrs[_n], t)
 	r = e.content
 	if isinstance(r, bytes):
 		if len(r) < 256:
@@ -105,7 +105,7 @@ def D(e,t:io.BytesIO=None):
 			D(r[_e] ,t)
 	else:
 		if r is not None:
-			N(r, t)
+			wap_encode(r, t)
 
 
 def x():
@@ -187,7 +187,10 @@ def G(e, t):
 	x(r, t)
 	# t.writeString(e)
 
-def N(e, t:io.BytesIO=None):
+def wap_encode(e, t:io.BytesIO=None):
+	"""
+	renamed from function `N(e, t:io.BytesIO=None)`
+	"""
 	# print(f'e > {e}')
 	if e is None:
 		t.write(b'\x00')
@@ -202,10 +205,10 @@ def N(e, t:io.BytesIO=None):
 		else:
 			t.write(int(250).to_bytes(1, 'big'))
 			if n.user is not None:
-				N(n.user, t)
+				wap_encode(n.user, t)
 			else:
 				t.write(int(0).to_bytes(1, 'big'))
-			N(n.server, t)
+			wap_encode(n.server, t)
 	elif isinstance(e, str):
 		G(e,t)
 	else:

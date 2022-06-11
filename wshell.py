@@ -366,8 +366,9 @@ if __name__ == "__main__":
 	# N(e,t)
 	_a = wap.WapJid.create(user=None, server='s.whatsapp.net')
 	_x = wap.WapNode(tag="iq", content=None, attrs={"to":_a, "type":'result', "id": parsed_dec.attrs['id']})
+
 	t = io.BytesIO()
-	wap.N(_x, t)
+	wap.wap_encode(_x, t)
 	t.seek(0)
 	_buf = b'\x00' + t.read()
 

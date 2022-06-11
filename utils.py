@@ -42,5 +42,5 @@ def create_stream(buffer:bytes=None) -> io.BytesIO:
 	@arg buffer: create a stream from the given buffer
 	@return `BytesIO` stream
 	"""
-	stream = io.BytesIO(e)
+	stream = io.BytesIO(buffer)
 	return stream
