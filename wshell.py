@@ -20,6 +20,86 @@ import axolotl_curve25519 as curve
 import utils
 
 
+class FrameSocket:
+	"""
+	class to handle websocket methods and coroutines
+	"""
+	websocket_url = "wss://web.whatsapp.com/ws/chat"
+	header = ["User-Agent: Chrome/100.0.4896.127"]
+	cookie_str = 'wa_lang_pref=en; wa_beta_version=production%2F1654038811%2F2.2220.8'
+
+	def __init__(self, ws:websocket=None, enc_key:bytes=None, dec_key:bytes=None, debug:bool=False):
+		self.ws = ws
+		self.noise_enc = AES_GCM(enc_key) if enc_key is not None else None
+		self.noise_dec = AES_GCM(dec_key) if dec_key is not None else None
+		self.noise_enc_ctr = 0
+		self.noise_dec_ctr = 0
+
+		if debug:
+			websocket.enableTrace(True)
+
+
+	def connect(self):
+		"""
+		opens a websocket connection with the server
+		"""
+		self.ws = websocket.WebSocket()
+		self.ws.connect(self.websocket_url, header=self.header, origin="https://web.whatsapp.com",\
+		host="web.whatsapp.com", cookie=self.cookie_str)
+	
+	
+	def send_frame(self, intro_bytes:bytes=None, payload:bytes=None) -> int:
+		"""
+		append intro bytes, sizeof `payload` (cast to 3 bytes) to the actual payload and send
+		via websocket
+		@arg intro_bytes: bytes to be appended
+		@arg payload    : payload to be sent
+		@return length  : total length of sent bytes
+		"""
+		if intro_bytes is None:
+			intro_bytes = b"" 
+		final_pyld = intro_bytes + len(payload).to_bytes(3, "big") + payload
+		print(f'-> size: {len(final_pyld)}')
+		self.ws.send_binary(final_pyld)
+		return len(final_pyld)
+	
+	
+	def recv_frame(self) -> bytes:
+		"""
+		generator
+		receive `binary_frame` from server and parse it to return `data` bytes
+		@return payload bytes
+		"""
+		pyld = self.ws.recv_frame()
+		print(f'<- size: {len(pyld.data)}')
+		if len(pyld.data) <= 4:
+			return pyld.data
+		recv_stream = wap.create_stream(pyld.data)
+		while True:
+			pyld_len = int.from_bytes(recv_stream.read(3), 'big')
+			if pyld_len == 0:
+				break
+			else:
+				yield recv_stream.read(pyld_len)
+
+
+	def set_auth_keys(self, enc_key:bytes=None, dec_key:bytes=None):
+		self.noise_enc, self.noise_dec = AESGCM(enc_key), AESGCM(dec_key)
+
+	
+	def noise_encrypt(self, pt:bytes=None) -> bytes:
+		enc = self.noise_enc.encrypt(utils.gen_iv(self.noise_enc_ctr), pt, b"")
+		self.noise_enc_ctr += 1
+		return enc
+
+
+	def noise_decrypt(self, ct:bytes=None) -> bytes:
+		dec = self.noise_dec.decrypt(utils.gen_iv(self.noise_dec_ctr), ct, None)
+		self.noise_dec_ctr+=1
+		return dec
+
+
+
 class Client(object):
 	"""
 	class to represent a client instance
@@ -27,8 +107,6 @@ class Client(object):
 	client and hence it has a lot of side effects. However, the side effects are limited
 	to the Client objects own parameters
 	"""
-	websocket_url = "wss://web.whatsapp.com/ws/chat"
-	header = ["User-Agent: Chrome/100.0.4896.127"]
 	INIT_SALT = b"Noise_XX_25519_AESGCM_SHA256\x00\x00\x00\x00"
 	WA_HEADER = b"\x57\x41\x06\02" 
 
@@ -54,7 +132,7 @@ class Client(object):
 		# recover_token set by refreshNoiseCredentials()
 		self.recovery_token = recovery_token or secrets.token_bytes(24)
 		self.reg_id         = reg_id or secrets.token_bytes(2)
-		self.ws             = ws
+		self.ws             =	FrameSocket(debug=debug)
 		self.adv_secret_key = be(secrets.token_bytes(32))
 
 		#------------------[CLIENT KEYS]-----------------#
@@ -80,59 +158,6 @@ class Client(object):
 		#------------------[NOISE CIPHERS]----------------#
 		# the noise socket's AESGCM objects used for encryption and decryption of 
 		# messages respectively
-		self.noise_enc = None
-		self.noise_dec = None
-		self.noise_enc_counter = 0
-		self.noise_dec_counter = 0
-
-		if debug:
-			websocket.enableTrace(True)
-
-
-	def _connect(self):
-		"""
-		opens a websocket connection with the server
-		"""
-		self.ws = websocket.WebSocket()
-		cookie_str = 'wa_lang_pref=en; wa_beta_version=production%2F1654038811%2F2.2220.8'
-		self.ws.connect(self.websocket_url, header=self.header, origin="https://web.whatsapp.com",\
-		host="web.whatsapp.com", cookie=cookie_str)
-
-
-	def _send_frame(self, intro_bytes:bytes=None, payload:bytes=None) -> int:
-		"""
-		append intro bytes, sizeof `payload` (cast to 3 bytes) to the actual payload and send
-		via websocket
-		@arg intro_bytes: bytes to be appended
-		@arg payload    : payload to be sent
-		@return length  : total length of sent bytes
-		"""
-		if intro_bytes is None:
-			intro_bytes = b"" 
-		final_pyld = intro_bytes + len(payload).to_bytes(3, "big") + payload
-		print(f'-> size: {len(final_pyld)}')
-		self.ws.send_binary(final_pyld)
-		return len(final_pyld)
-
-
-	#TODO remove `_` from name as it is being used outside the class
-	def _recv_frame(self) -> bytes:
-		"""
-		generator
-		receive `binary_frame` from server and parse it to return `data` bytes
-		@return payload bytes
-		"""
-		pyld = self.ws.recv_frame()
-		print(f'<- size: {len(pyld.data)}')
-		if len(pyld.data) <= 4:
-			return pyld.data
-		recv_stream = wap.create_stream(pyld.data)
-		while True:
-			pyld_len = int.from_bytes(recv_stream.read(3), 'big')
-			if pyld_len == 0:
-				break
-			else:
-				yield recv_stream.read(pyld_len)
 
 
 	def _gen_signed_prekey(self, private_bytes:bytes=None):
@@ -217,15 +242,6 @@ class Client(object):
 		self.hash = digest.finalize()
 
 
-	def _gen_iv(self, counter:int=None) -> bytes:
-		"""
-		convert a counter int into a 96 bit vector but strangely only the last 4 bytes
-		are ever used
-		#TODO check what happens when counter > 4 bytes 
-		"""
-		return b"\x00\x00\x00\x00\x00\x00\x00\x00" + counter.to_bytes(4, "big")
-
-
 	def _encrypt(self, pt:bytes=None) -> bytes:
 		"""
 		encrypt plaintext `pt` using cryptokey. reconstruction of `encrypt()` found on 
@@ -234,7 +250,7 @@ class Client(object):
 		@return bytes: encrypted bytes
 		"""
 		try:
-			_enc = self.cryptokey.encrypt(self._gen_iv(self.counter), pt, self.hash)
+			_enc = self.cryptokey.encrypt(utils.gen_iv(self.counter), pt, self.hash)
 			self._authenticate(_enc)
 			self.counter += 1
 			return _enc
@@ -251,7 +267,7 @@ class Client(object):
 		@return: bytes - decrypted bytes
 		"""
 		try:
-			_dec = self.cryptokey.decrypt(self._gen_iv(self.counter), ct, self.hash)
+			_dec = self.cryptokey.decrypt(utils.gen_iv(self.counter), ct, self.hash)
 			self._authenticate(ct)
 			self.counter += 1
 			return _dec
@@ -349,7 +365,7 @@ class Client(object):
 		fin_msg = msg_pb2.HandshakeMessage()
 		fin_msg.clientFinish.static = _enc_static_key
 		fin_msg.clientFinish.payload = _enc_client_payload
-		_l = self._send_frame(payload=fin_msg.SerializeToString())
+		_l = self.ws.send_frame(payload=fin_msg.SerializeToString())
 
 
 	def client_dump(self) -> str:
@@ -374,7 +390,7 @@ class Client(object):
 		
 		self._authenticate(self.WA_HEADER)
 
-		self._connect()
+		self.ws.connect()
 		self._rotate_signed_prekey()
 		self._gen_signed_prekey()
 		
@@ -383,10 +399,10 @@ class Client(object):
 		self._authenticate(self.cephemeral_key.public.data)
 		chello = msg_pb2.HandshakeMessage()
 		chello.clientHello.ephemeral = self.cephemeral_key.public.data
-		_l = self._send_frame(intro_bytes=self.WA_HEADER, payload=chello.SerializeToString())
+		_l = self.ws.send_frame(intro_bytes=self.WA_HEADER, payload=chello.SerializeToString())
 
 		# receive server hello
-		recv_data = next(self._recv_frame())
+		recv_data = next(self.ws.recv_frame())
 		shello = msg_pb2.HandshakeMessage()
 
 		shello.ParseFromString(recv_data)
@@ -400,8 +416,7 @@ class Client(object):
 		create two AESGCM objects for encryption/decryption respectively
 		"""
 		_k = self._extract_with_salt_and_expand(self.salt, b"")
-		self.noise_enc, self.noise_dec = AESGCM(_k[:32]), AESGCM(_k[32:])
-		
+		self.ws.set_auth_keys(_k[:32], _k[32:])
 
 
 if __name__ == "__main__":
@@ -409,11 +424,10 @@ if __name__ == "__main__":
 	client = Client(debug=False)
 	client.initiate_noise_handshake()
 	client.finish()
-	srv_resp = next(client._recv_frame())
+	srv_resp = next(client.ws.recv_frame())
 	
 	# refer to `_handleCiphertext on Line #11528
-	dec = client.noise_dec.decrypt(client._gen_iv(client.noise_dec_counter), srv_resp, b"")
-	client.noise_dec_counter += 1
+	dec = client.ws.noise_decrypt(srv_resp)
 	assert len(dec) == 588
 
 	dec_stream = wap.create_stream(dec)
@@ -439,10 +453,8 @@ if __name__ == "__main__":
 	t.seek(0)
 	_buf = b'\x00' + t.read()
 
-	enc = client.noise_enc.encrypt(client._gen_iv(client.noise_enc_counter), _buf, b"")
-	client.noise_enc_counter += 1
-
-	client._send_frame(payload=enc)
+	enc = client.ws.noise_encrypt(_buf)
+	client.ws.send_frame(payload=enc)
 
 	qr_string = ref.decode() + "," + be(client.cstatic_key.public.data).decode() + ","\
 	+ be(client.cident_key.public.data).decode() + ","\
@@ -462,11 +474,9 @@ if __name__ == "__main__":
 	qr.print_ascii(tty=True, invert=True)
 
 	while True:
-		for resp in client._recv_frame():
+		for resp in client.ws.recv_frame():
+			dec = client.ws.noise_decrypt(resp)
 			if len(resp) > 4:
-				dec = client.noise_dec.decrypt(client._gen_iv(client.noise_dec_counter), resp, None)
-				client.noise_dec_counter+=1
-				# parse response
 				t = wap.create_stream(dec)
 				t.read(1)
 				s = wap.Y(t)

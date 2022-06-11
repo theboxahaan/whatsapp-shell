@@ -3,7 +3,6 @@ from cryptography.hazmat.primitives import serialization
 from typing import Union
 
 def get_Ed25519Key_bytes(key:Union[Ed25519PublicKey, Ed25519PrivateKey]=None) -> bytes:
-	#TODO migrate some stuff to `utils.py` 
 	"""
 	extract raw bytes from Ed25519Public/PrivateKey object
 	@arg key: key from which raw bytes are to be extracted
@@ -25,3 +24,14 @@ def get_Ed25519Key_bytes(key:Union[Ed25519PublicKey, Ed25519PrivateKey]=None) ->
 		_tmp = None
 	
 	return _tmp 
+
+
+def gen_iv(counter:int=None) -> bytes:
+	"""
+	convert a counter int into a 96 bit vector but strangely only the last 4 bytes
+	are ever used
+	#TODO check what happens when counter > 4 bytes 
+	"""
+	return b"\x00\x00\x00\x00\x00\x00\x00\x00" + counter.to_bytes(4, "big")
+
+
