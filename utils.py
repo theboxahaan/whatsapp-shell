@@ -36,9 +36,11 @@ def gen_iv(counter:int=None) -> bytes:
 	return b"\x00\x00\x00\x00\x00\x00\x00\x00" + counter.to_bytes(4, "big")
 
 
-def create_stream(e:bytes=None):
+def create_stream(buffer:bytes=None) -> io.BytesIO:
 	"""
 	convert a bytes type object into a byte-stream with a `read` method
+	@arg buffer: create a stream from the given buffer
+	@return `BytesIO` stream
 	"""
 	stream = io.BytesIO(e)
 	return stream
