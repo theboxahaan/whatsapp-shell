@@ -1,3 +1,4 @@
+import io
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives import serialization
 from typing import Union
@@ -35,3 +36,9 @@ def gen_iv(counter:int=None) -> bytes:
 	return b"\x00\x00\x00\x00\x00\x00\x00\x00" + counter.to_bytes(4, "big")
 
 
+def create_stream(e:bytes=None):
+	"""
+	convert a bytes type object into a byte-stream with a `read` method
+	"""
+	stream = io.BytesIO(e)
+	return stream

@@ -420,13 +420,6 @@ def Y(e:io.BytesIO=None):
 	return M(a,r,i)
 
 
-def create_stream(e:bytes=None):
-	"""
-	convert a bytes type object into a byte-stream with a `read` method
-	"""
-	stream = io.BytesIO(e)
-	return stream
-
 if __name__ == '__main__':
 	s = create_stream(b'1234567890')
 	for _ in range(10):
