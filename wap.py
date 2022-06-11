@@ -10,21 +10,31 @@ _y = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.', '�', '�', 
 
 class WapNode:
 	"""as of now rerpresents a WAP binary XML node"""
+
+	p_level = -4	#level for pretty printing nested WapNode's
+	indent_level = 4
+
 	def __init__(self, tag:str=None, attrs:dict=None, content=None):
 		self.tag = tag
 		self.attrs = attrs
 		self.content = content
 	
 	def __repr__(self):
-		return f'tag> {self.tag};\nattrs> {self.attrs};\ncontent> {self.content}'
-
+		WapNode.p_level += WapNode.indent_level
+		s = f"\
+		\n{' '*WapNode.p_level}{type(self)} object@ {id(self)}\
+		\n{'-'*WapNode.p_level}tag    > {self.tag};\
+		\n{'-'*WapNode.p_level}attrs  > {self.attrs};\
+		\n{'-'*WapNode.p_level}content> {self.content};\
+		\n{' '*WapNode.p_level}"
+		WapNode.p_level -= WapNode.indent_level
+		return s
 
 class WapJid:
 	"""
 	this class encapsulates `class_o` or class `o` as it is presented in the JS client
 	@ Line #11063 to make the class design a bit cleaner
 	"""
-
 	def __init__(self, jid:dict=None):
 		self._jid = SimpleNamespace(**jid)
 
@@ -51,9 +61,8 @@ class WapJid:
 	def get_inner_jid(self):
 		return self._jid
 
-	def __repr__(self):
+	def __repr__(self, level=0):
 		return str(self._jid)
-
 
 
 def D(e,t:io.BytesIO=None):
