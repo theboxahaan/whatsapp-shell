@@ -1,5 +1,6 @@
 import io
 from types import SimpleNamespace
+from typing import Union
 import json
 import math
 
@@ -9,7 +10,7 @@ _y = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.', '�', '�', 
 
 
 class WapNode:
-	"""as of now rerpresents a WAP binary XML node"""
+	"""as of now represents a WAP binary XML node"""
 
 	p_level = -4	#level for pretty printing nested WapNode's
 	indent_level = 4
@@ -29,6 +30,7 @@ class WapNode:
 		\n{' '*WapNode.p_level}"
 		WapNode.p_level -= WapNode.indent_level
 		return s
+
 
 class WapJid:
 	"""
@@ -65,47 +67,47 @@ class WapJid:
 		return str(self._jid)
 
 
-def D(e,t:io.BytesIO=None):
+def encode_wapnode(node, buffer:io.BytesIO=None):
 	'''
 	function `D(e,t)` at Line #10764
 	'''
-	if e.tag is None:
-		t.write(b'\xf8')
-		t.write(b'\x00')
+	if node.tag is None:
+		buffer.write(b'\xf8')
+		buffer.write(b'\x00')
 		print('tag is none')
 		return
 	n = 1
-	if e.attrs is not None:
-		n += 2*len(e.attrs.keys())
-	if e.content is not None:
+	if node.attrs is not None:
+		n += 2*len(node.attrs.keys())
+	if node.content is not None:
 		n += 1
 	if n < 256:
-		t.write(b'\xf8')
-		t.write(n.to_bytes(1, 'big'))
+		buffer.write(b'\xf8')
+		buffer.write(n.to_bytes(1, 'big'))
 	else:
 		if n < 65536:
-			t.write(b'\xf9')
-			t.write(n.to_bytes(2, 'big'))
-	wap_encode(e.tag, t)
+			buffer.write(b'\xf9')
+			buffer.write(n.to_bytes(2, 'big'))
+	wap_encode(node.tag, buffer)
 	# print(':. wrote the tag to the buffer', e.attrs.keys())
-	if e.attrs is not None:
-		for _n in e.attrs.keys():
-			G(_n, t)
-			wap_encode(e.attrs[_n], t)
-	r = e.content
+	if node.attrs is not None:
+		for _n in node.attrs.keys():
+			encode_string(_n, buffer)
+			wap_encode(node.attrs[_n], buffer)
+	r = node.content
 	if isinstance(r, bytes):
 		if len(r) < 256:
-			t.write(b'\xf8')
-			t.write(len(r).to_bytes(1, 'big'))
+			buffer.write(b'\xf8')
+			buffer.write(len(r).to_bytes(1, 'big'))
 		else:
 			if len(r) < 65536:
-				t.write(b'\xf9')
-				t.write(len(r).to_bytes(2, 'big'))
+				buffer.write(b'\xf9')
+				buffer.write(len(r).to_bytes(2, 'big'))
 		for _e in range(len(r)):
-			D(r[_e] ,t)
+			encode_wapnode(r[_e], buffer)
 	else:
 		if r is not None:
-			wap_encode(r, t)
+			wap_encode(r, buffer)
 
 
 def x():
@@ -114,20 +116,20 @@ def x():
 L = None
 k = None
 
-def G(e, t):
+def encode_string(string:str=None, buffer:io.BytesIO=None):
 	'''
 	function `G(e, t)` on Line #10798
 	'''
-	if e == "":
-		t.write(b'\xfc')
-		t.write(b'\x00')
+	if string == "":
+		buffer.write(b'\xfc')
+		buffer.write(b'\x00')
 		return
 	#if L is None:
 	L = {_L.SINGLE_BYTE_TOKEN[k]:k for k in range(len(_L.SINGLE_BYTE_TOKEN))}
-	n = L.get(e, None)
+	n = L.get(string, None)
 	if n is not None:
 		# print(f'writing {n+1} to the buffer')
-		t.write((n+1).to_bytes(1, 'big'))
+		buffer.write((n+1).to_bytes(1, 'big'))
 		return
 	#if k is None:
 	k = []
@@ -135,14 +137,14 @@ def G(e, t):
 		k.append({entry[i]:i for i in range(len(entry))})
 
 	for _n in range(len(k)):
-		r = k[_n].get(e, None)
+		r = k[_n].get(string, None)
 		if r is not None:
 			h = [236, 237, 238, 239]
-			t.write(h[_n].to_bytes(1, 'big'))
-			t.write(r.to_bytes(1, 'big'))
+			buffer.write(h[_n].to_bytes(1, 'big'))
+			buffer.write(r.to_bytes(1, 'big'))
 			return
 	
-	r = len(e)		# replace numUtf8Bytes
+	r = len(string)		# replace numUtf8Bytes
 	if r < 128:
 		#FIXME skipping the regex check assume `True` both times
 		# function B(e, t, n) @Line #10827 --- B(e,255,t)
@@ -180,44 +182,44 @@ def G(e, t):
 				else:
 					a |= o
 					n.write(a.to_bytes(1, 'big'))
-		B(e, 255, t)
+		B(string, 255, buffer)
 		return
 	#FIXME
 	# this should not be called atleast till the handshake is complete 
-	x(r, t)
+	x(r, buffer)
 	# t.writeString(e)
 
-def wap_encode(e, t:io.BytesIO=None):
+def wap_encode(obj:Union[WapNode, WapJid, bytes, str]=None, buffer:io.BytesIO=None):
 	"""
 	renamed from function `N(e, t:io.BytesIO=None)`
 	"""
 	# print(f'e > {e}')
-	if e is None:
-		t.write(b'\x00')
-	elif isinstance(e, WapNode):
-		D(e,t)
-	elif isinstance(e, WapJid):
-		n = e._jid
+	if obj is None:
+		buffer.write(b'\x00')
+	elif isinstance(obj, WapNode):
+		encode_wapnode(obj, buffer)
+	elif isinstance(obj, WapJid):
+		n = obj.get_inner_jid()
 		if n.type == _C.WAP_JID_SUBTYPE.JID_U:
 			raise NotImplementedError
 		elif n.type == _C.WAP_JID_SUBTYPE.JID_FB:
 			raise NotImplementedError
 		else:
-			t.write(int(250).to_bytes(1, 'big'))
+			buffer.write(int(250).to_bytes(1, 'big'))
 			if n.user is not None:
-				wap_encode(n.user, t)
+				wap_encode(n.user, buffer)
 			else:
-				t.write(int(0).to_bytes(1, 'big'))
-			wap_encode(n.server, t)
-	elif isinstance(e, str):
-		G(e,t)
+				buffer.write(int(0).to_bytes(1, 'big'))
+			wap_encode(n.server, buffer)
+	elif isinstance(obj, str):
+		encode_string(obj, buffer)
 	else:
-		if not isinstance(e, bytes):	# standin for Uint8Array
+		if not isinstance(obj, bytes):	# standin for Uint8Array
 			print('invalid payload type')
-		def x(e:int, t:io.BytesIO):
+		def x(obj:int, buffer:io.BytesIO):
 			raise NotImplemented
-		x(len(e), t)
-		t.write(e)
+		x(len(obj), buffer)
+		buffer.write(obj)
 
 
 def rshift(val, n): 
