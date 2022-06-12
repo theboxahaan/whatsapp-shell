@@ -122,6 +122,7 @@ class WapEncoder:
 	def x(self):
 		raise NotImplementedError
 
+
 	def _encode_string(self, string:str=None, buffer:io.BytesIO=None):
 		'''
 		function `G(e, t)` on Line #10798
@@ -195,6 +196,7 @@ class WapEncoder:
 		x(r, buffer)
 		# t.writeString(e)
 
+
 	def _wap_encode(self, obj:Union[WapNode, WapJid, bytes, str]=None, buffer:io.BytesIO=None):
 		"""
 		renamed from function `N(e, t:io.BytesIO=None)`
@@ -232,6 +234,8 @@ class WapEncoder:
 		self._wap_encode(self.node, self.buffer)
 		self.buffer.seek(0)
 		return self.buffer.read()
+
+
 
 def rshift(val, n): 
 	"""
