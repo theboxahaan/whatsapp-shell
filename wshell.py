@@ -1,6 +1,7 @@
 import secrets
 import qrcode
 import io
+import hmac
 import traceback
 from base64 import b64encode as be
 from base64 import b64decode as bd
@@ -384,6 +385,59 @@ if __name__ == "__main__":
 	qr.add_data(qr_string)
 	qr.make(fit=True)
 	qr.print_ascii(tty=True, invert=True)
+
+	# recieve servers reponse
+	# expecting just a single response
+	dec = client.ws.noise_decrypt(next(client.ws.recv_frame()))
+	dec_stream = utils.create_stream(dec)
+	dec_stream.read(1)
+	resp_node = wap.Y(dec_stream)
+	print(resp_node)
+
+	# refer to source @ Line #47716
+	adv_obj = msg_pb2.ADVSignedDeviceIdentityHMAC()
+	adv_obj.ParseFromString(resp_node.content[0].content[1].content)
+	computed_digest = hmac.digest(bd(client.adv_secret_key), adv_obj.details, 'sha256')
+	print(f'digest>\n{computed_digest} \n{adv_obj.hmac}')
+
+	# skip digest validation
+	signed_dev_ident = msg_pb2.ADVSignedDeviceIdentity()
+	signed_dev_ident.ParseFromString(adv_obj.details)
+
+	#TODO
+	# skip signature validation @ Line #47750
+
+	# generate device signature
+	# on line #58285
+	buf = b'\x06\x01' + signed_dev_ident.details + client.cident_key.public.data + signed_dev_ident.accountSignatureKey
+	signed_dev_ident.deviceSignature = curve.calculateSignature(secrets.token_bytes(64),\
+	client.cident_key.private.data, buf)
+
+
+	# skip put identity in signal store
+
+	dev_ident  = msg_pb2.ADVDeviceIdentity()
+	dev_ident.ParseFromString(signed_dev_ident.details)
+	x = dev_ident.keyIndex
+
+	_ident = msg_pb2.ADVSignedDeviceIdentity()
+	_ident.details = signed_dev_ident.details
+	_ident.accountSignature = signed_dev_ident.accountSignature
+	_ident.deviceSignature = signed_dev_ident.deviceSignature
+
+	_f = _ident.SerializeToString()
+	_a = wap.WapJid.create(user=None, server='s.whatsapp.net')
+	_b = wap.WapNode(tag="device-identity", attrs={'key-index': str(x)}, content=_f)
+	_c = wap.WapNode(tag="pair-device-sign", attrs={},  content= [_b])
+	_x = wap.WapNode(tag="iq", content=[_c], attrs={"to":_a, "type":'result', "id": resp_node.attrs['id']})
+
+	print(_x)
+	t = wap.WapEncoder(_x).encode()
+	_buf = b'\x00' + t
+
+	enc = client.ws.noise_encrypt(_buf)
+	client.ws.send_frame(payload=enc)
+
 
 	while True:
 		for resp in client.ws.recv_frame():
