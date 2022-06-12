@@ -367,10 +367,13 @@ if __name__ == "__main__":
 	_a = wap.WapJid.create(user=None, server='s.whatsapp.net')
 	_x = wap.WapNode(tag="iq", content=None, attrs={"to":_a, "type":'result', "id": parsed_dec.attrs['id']})
 
-	t = io.BytesIO()
-	wap.wap_encode(_x, t)
-	t.seek(0)
-	_buf = b'\x00' + t.read()
+	#t = io.BytesIO()
+	#wap.wap_encode(_x, t)
+	#t.seek(0)
+	encoder = wap.WapEncoder(_x)
+	t = encoder.encode()
+
+	_buf = b'\x00' + t
 
 	enc = client.ws.noise_encrypt(_buf)
 	client.ws.send_frame(payload=enc)
