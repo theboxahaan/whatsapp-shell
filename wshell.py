@@ -357,21 +357,11 @@ if __name__ == "__main__":
 	#print(f"parsed id ~> {parsed_dec.attrs['id']}")
 	ref_v = [parsed_dec.content[0].content[i].content for i in range(6)]
 	ref = ref_v[0]
-	# `castStanza` on Line #47522
-	# Convert `M` type wap object to a buffer using function `N(e, t)` on Line #10727
 
-	# serialize WAPJID("iq", {"to": _jid: {server: "s.whatsapp.net", type: 0, user: None},
-	#                         "type": "result", "id": parsed_id })
-	# _.encodeStanza(...) @ Line #35561
-	# N(e,t)
 	_a = wap.WapJid.create(user=None, server='s.whatsapp.net')
 	_x = wap.WapNode(tag="iq", content=None, attrs={"to":_a, "type":'result', "id": parsed_dec.attrs['id']})
 
-	#t = io.BytesIO()
-	#wap.wap_encode(_x, t)
-	#t.seek(0)
-	encoder = wap.WapEncoder(_x)
-	t = encoder.encode()
+	t = wap.WapEncoder(_x).encode()
 
 	_buf = b'\x00' + t
 
