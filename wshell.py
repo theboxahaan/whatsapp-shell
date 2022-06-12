@@ -439,14 +439,16 @@ if __name__ == "__main__":
 	client.ws.send_frame(payload=enc)
 
 
-	while True:
-		for resp in client.ws.recv_frame():
-			dec = client.ws.noise_decrypt(resp)
-			if len(resp) > 4:
-				t = utils.create_stream(dec)
-				t.read(1)
-				s = wap.Y(t)
-				#print(s.attrs, s.tag, s.content)
-				print(s)
-			else:
-				print(resp)
+	for resp in client.ws.recv_frame():
+		dec = client.ws.noise_decrypt(resp)
+		t = utils.create_stream(dec)
+		t.read(1)
+		s = wap.Y(t)
+		#print(s.attrs, s.tag, s.content)
+		print(s)
+
+	try:
+		print(next(client.ws.recv_frame()))
+	except Exception as e:
+		print(':. disconnect detected')
+
