@@ -76,6 +76,7 @@ class WapEncoder:
 		self.L = None
 		self.k = None
 
+
 	def _encode_wapnode(self, node:WapNode=None, buffer:io.BytesIO=None):
 		'''
 		function `D(e,t)` at Line #10764
@@ -299,7 +300,7 @@ def W(e, t, extra:bool):
 	function at Line #10980
 	'''
 	# print('extra> ', extra)
-	if extra is not None and extra is not False:
+	if extra is True:
 		return e.read(t).decode('utf-8')
 	else:
 		return e.read(t)
@@ -392,14 +393,9 @@ def M(e, *args):
 	'''
 	class at Line #10665
 	'''
-	if len(args) > 0:
-		t = args[0]
-	else:
-		t = {}
-	if len(args) > 1:
-		n = args[1]
-	else:
-		n = None
+	t = args[0] if len(args) > 0 else {}
+	n = args[1] if len(args) > 1 else None
+
 	return WapNode(tag=e, attrs=t, content=n)
 
 
