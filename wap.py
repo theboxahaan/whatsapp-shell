@@ -115,7 +115,7 @@ class WapEncoder:
 				self._encode_string(_n, buffer)
 				self._wap_encode(node.attrs[_n], buffer)
 		r = node.content
-		if isinstance(r, bytes):
+		if isinstance(r, list):
 			if len(r) < 256:
 				buffer.write(b'\xf8')
 				buffer.write(len(r).to_bytes(1, 'big'))
@@ -130,8 +130,15 @@ class WapEncoder:
 				self._wap_encode(r, buffer)
 	
 
-	def x(self):
-		raise NotImplementedError
+	def _x(self, e, t):
+		'''
+		function `x(e,t)` @ Line #10846
+		'''
+		if e < 256:
+			t.write(int(252).to_bytes(1, 'big'))
+			t.write(e.to_bytes(1, 'big'))
+		else:
+			raise NotImplementedError
 
 
 	def _encode_string(self, string:str=None, buffer:io.BytesIO=None):
@@ -194,11 +201,14 @@ class WapEncoder:
 					else:
 						a |= o
 						n.write(a.to_bytes(1, 'big'))
-			B(string, 255, buffer)
-			return
+			#FIXME implement proper regex 
+			if '-' not in string:
+				B(string, 255, buffer)
+				return
 		#FIXME
 		# this should not be called atleast till the handshake is complete 
-		x(r, buffer)
+		self._x(r, buffer)
+		buffer.write(string.encode('utf-8'))
 		# t.writeString(e)
 
 
@@ -206,7 +216,6 @@ class WapEncoder:
 		"""
 		renamed from function `N(e, t:io.BytesIO=None)`
 		"""
-		# print(f'e > {e}')
 		if obj is None:
 			buffer.write(b'\x00')
 		elif isinstance(obj, WapNode):
@@ -229,9 +238,7 @@ class WapEncoder:
 		else:
 			if not isinstance(obj, bytes):	# standin for Uint8Array
 				print('invalid payload type')
-			def x(obj:int, buffer:io.BytesIO):
-				raise NotImplemented
-			x(len(obj), buffer)
+			self._x(len(obj), buffer)
 			buffer.write(obj)
 
 
