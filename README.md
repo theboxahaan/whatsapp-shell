@@ -78,6 +78,9 @@ iQMKMMXRr+eBUvmiDk6pvlqgDiy9OIEfB4CL8UXzOWw=,foXo8hoDLJkOYBiJQ245dgEASibGYkpaaOv
 	- [x] A 37 byte frame is sent to the server. ~~what is it ?~~ -- possibly called the `result`
 	- [x] A ~250 byte response is sent from the server which I don't get yet. Get that msg
 	- [x] Repair the parser `Y`
+- [x] Correctly send device pairing info to the server. Don't know for sure if it's correct though.
+- [ ] After a correct message containing pairing device info is sent, the server terminates the cnx
+with a `515` error message. Now a new login session needs to be started.
 - [ ] Refactor `wap.py`
 - [ ] Refactor `wshell.py`
 - [ ] Replicate `libsignal-protocol`'s signing algo and see how it is diff from `DJM`
