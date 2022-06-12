@@ -5,6 +5,16 @@ import json
 import math
 
 
+with open('L_act.json', 'r') as fd:
+	_j = json.load(fd)
+
+_L = SimpleNamespace(**{
+	'DICTIONARIES': _j['DICTIONARIES'],
+	'SINGLE_BYTE_TOKEN': _j['SINGLE_BYTE_TOKEN']
+})
+
+
+
 _E = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
 _y = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.', '�', '�', '�', '�']
 
@@ -69,12 +79,12 @@ class WapJid:
 
 class WapEncoder:
 
+	L = {val:index for index,val in enumerate(_L.SINGLE_BYTE_TOKEN)}
+	k = [{v:i for i,v in enumerate(d)} for d in _L.DICTIONARIES]
+
 	def __init__(self, wapnode):
 		self.node = wapnode
 		self.buffer = io.BytesIO()
-
-		self.L = None
-		self.k = None
 
 
 	def _encode_wapnode(self, node:WapNode=None, buffer:io.BytesIO=None):
@@ -132,17 +142,11 @@ class WapEncoder:
 			buffer.write(b'\xfc')
 			buffer.write(b'\x00')
 			return
-		#if L is None:
-		self.L = {_L.SINGLE_BYTE_TOKEN[k]:k for k in range(len(_L.SINGLE_BYTE_TOKEN))}
 		n = self.L.get(string, None)
 		if n is not None:
 			# print(f'writing {n+1} to the buffer')
 			buffer.write((n+1).to_bytes(1, 'big'))
 			return
-		#if k is None:
-		self.k = []
-		for entry in _L.DICTIONARIES:
-			self.k.append({entry[i]:i for i in range(len(entry))})
 	
 		for _n in range(len(self.k)):
 			r = self.k[_n].get(string, None)
@@ -257,14 +261,6 @@ _C = SimpleNamespace(**{
 		'JID_U': 1
 	}),
 	'WapJid': WapJid
-})
-
-with open('L_act.json', 'r') as fd:
-	_j = json.load(fd)
-
-_L = SimpleNamespace(**{
-	'DICTIONARIES': _j['DICTIONARIES'],
-	'SINGLE_BYTE_TOKEN': _j['SINGLE_BYTE_TOKEN']
 })
 
 
