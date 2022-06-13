@@ -409,10 +409,10 @@ if __name__ == "__main__":
 
 	# generate device signature
 	# on line #58285
-	buf = b'\x06\x01' + signed_dev_ident.details + client.cident_key.public.data + signed_dev_ident.accountSignatureKey
+	buf = b'\x06\x01' + signed_dev_ident.details + client.cident_key.public.data\
+	+ signed_dev_ident.accountSignatureKey
 	signed_dev_ident.deviceSignature = curve.calculateSignature(secrets.token_bytes(64),\
 	client.cident_key.private.data, buf)
-
 
 	# skip put identity in signal store
 
