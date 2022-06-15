@@ -247,6 +247,21 @@ class Client(object):
 		return pyld_spec.SerializeToString()
 
 
+	def _get_client_payload_for_login(self):
+		"""
+		`getClientPayloadForLogin` @ Line #61560
+		"""
+		d = {'username':int(resp_node.content[0].content[2].attrs['jid']._jid.user),
+				 'device' : resp_node.content[0].content[2].attrs['jid']._jid.device
+				}
+		print(d)
+		pyld_spec = msg_pb2.ClientPayloadSpec()
+		proto_utils.update_protobuf(pyld_spec, proto_utils.defaults.ClientPayloadSpec1)
+		proto_utils.update_protobuf(pyld_spec, {'passive':True, 'pull':False})
+		proto_utils.update_protobuf(pyld_spec, d)
+		return pyld_spec.SerializeToString()
+
+
 	def _process_server_hello(self, shello:msg_pb2.ServerHello=None):
 		"""
 		process server hello on line  61035 a.k.a `function w(e, t, n)`
@@ -265,12 +280,14 @@ class Client(object):
 		# verifyChainCertificateWA6 Line #61025 skipped
 
 
-	def _send_client_finish(self):
+	def _send_client_finish(self, login:bool=False):
 
 		# returned tuple by generator M() on Line #61095 is 
 		# (_get_registration_info, _get_signed_prekey, s_eph)
-		
-		client_payload = self._get_client_payload_for_registration()
+		if login:
+			client_payload = self._get_client_payload_for_login()
+		else:
+			client_payload = self._get_client_payload_for_registration()
 
 		# Line #61105 waNoiseInfo.get()....staticKeyPair
 		# returns clients static keyPair
@@ -305,7 +322,7 @@ class Client(object):
 					\n****** CLIENT STATE END ******\n"
 
 
-	def initiate_noise_handshake(self):
+	def initiate_noise_handshake(self, login:bool=False):
 		
 		self._authenticate(self.WA_HEADER)
 
@@ -327,7 +344,7 @@ class Client(object):
 		shello.ParseFromString(recv_data)
 		self._process_server_hello(shello.serverHello)
 
-		self._send_client_finish()
+		self._send_client_finish(login)
 
 
 	def finish(self):
@@ -452,3 +469,34 @@ if __name__ == "__main__":
 	except Exception as e:
 		print(':. disconnect detected')
 
+
+	# make a new client and send upto the client finish message
+	# # get client payload for login @ Line #61560
+	# # ref _.setMe)(i) @ Line #47800
+	
+	reclient = Client(debug=False)
+	reclient.noise_info_iv = client.noise_info_iv
+	reclient.recovery_token = client.recovery_token
+	reclient.reg_id = client.reg_id
+	reclient.adv_secret_key = client.adv_secret_key
+	reclient.cstatic_key = client.cstatic_key
+	reclient.cephemeral_key = client.cephemeral_key
+	reclient.cident_key = client.cident_key
+
+
+
+	reclient.initiate_noise_handshake(login=True)
+	reclient.finish()
+	srv_resp = next(reclient.ws.recv_frame())
+	
+	# refer to `_handleCiphertext on Line #11528
+	dec = reclient.ws.noise_decrypt(srv_resp)
+	# assert len(dec) == 588
+
+	dec_stream = utils.create_stream(dec)
+	if int.from_bytes(dec_stream.read(1), 'big') & 2 != 0:
+		print(f'might need to gzip inflate')
+		raise NotImplementedError
+	
+	parsed_dec = wap.Y(dec_stream)
+	print(parsed_dec)
