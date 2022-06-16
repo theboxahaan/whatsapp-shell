@@ -484,9 +484,11 @@ if __name__ == "__main__":
 	x = dev_ident.keyIndex
 
 	_ident = msg_pb2.ADVSignedDeviceIdentity()
-	_ident.details = signed_dev_ident.details
-	_ident.accountSignature = signed_dev_ident.accountSignature
-	_ident.deviceSignature = signed_dev_ident.deviceSignature
+	proto_utils.update_protobuf(_ident, {
+		'details': signed_dev_ident.details,
+		'accountSignature': signed_dev_ident.accountSignature,
+		'deviceSignature': signed_dev_ident.deviceSignature
+	})
 
 	_f = _ident.SerializeToString()
 	
