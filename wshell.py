@@ -52,12 +52,13 @@ class Client(object):
 		# recover_token set by refreshNoiseCredentials()
 		self.recovery_token = recovery_token or secrets.token_bytes(24)
 		self.reg_id         = reg_id or secrets.token_bytes(2)
-		self.ws             =	FrameSocket(debug=debug)
+		self.ws             = FrameSocket(debug=debug)
 		self.adv_secret_key = be(secrets.token_bytes(32))
+		self.debug          = debug
 
 		#------------------[CLIENT KEYS]-----------------#
+		# set by refreshNoiseCredentials() Line #61186
 		if static_private_bytes is not None:
-			# set by refreshNoiseCredentials() Line #61186
 			static_private_bytes = PrivateKey(static_private_bytes)
 		self.cstatic_key    = X25519DH().generate_keypair(privatekey=static_private_bytes)
 		
@@ -75,10 +76,18 @@ class Client(object):
 		self.signed_prekey_store  = {}
 		self._id_to_signed_prekey = {}
 
-		#------------------[NOISE CIPHERS]----------------#
-		# the noise socket's AESGCM objects used for encryption and decryption of 
-		# messages respectively
+		self.username = None
+		self.device   = None
 
+
+	def reset_conn(self):
+		"""reset `Client` so that it can be re-used for login after registration"""
+		self.counter = 0
+		self.cryptokey = None
+		self.shared_key = None
+		self.salt = self.INIT_SALT
+		self.hash = self.INIT_SALT
+		self.ws = FrameSocket(self.debug)
 
 	def _gen_signed_prekey(self, private_bytes:bytes=None):
 		"""
@@ -252,17 +261,14 @@ class Client(object):
 		"""
 		`getClientPayloadForLogin` @ Line #61560
 		"""
-		self.username = resp_node.content[0].content[2].attrs['jid']._jid.user
-		self.device = resp_node.content[0].content[2].attrs['jid']._jid.device
-
-		d = {'username': int(self.username),
-				 'device'  : self.device
-				}
-		print(d)
 		pyld_spec = msg_pb2.ClientPayloadSpec()
 		proto_utils.update_protobuf(pyld_spec, proto_utils.defaults.ClientPayloadSpec1)
-		proto_utils.update_protobuf(pyld_spec, {'passive':True, 'pull':False})
-		proto_utils.update_protobuf(pyld_spec, d)
+		proto_utils.update_protobuf(pyld_spec, {
+			'passive':True,
+			'pull':False,
+			'username': int(self.username),
+			'device': self.device
+		})
 		return pyld_spec.SerializeToString()
 
 
@@ -358,30 +364,32 @@ class Client(object):
 		_k = self._extract_with_salt_and_expand(self.salt, b"")
 		self.ws.set_auth_keys(_k[:32], _k[32:])
 
+
 	def logout(self):
 		"""
 		`logout` on Line #162985
-		refs-
-		`u()` on Line #57599
+		refs: `u()` on Line #57599
 		"""
-		_a = wap.WapNode(tag="iq", attrs={
-		"to":wap.WapJid.create(user=None, server='s.whatsapp.net'), 
-		"type":"set",
-		"id": str(int.from_bytes(secrets.token_bytes(2), 'big')) + '.'\
-		+ str(int.from_bytes(secrets.token_bytes(2), 'big')) + '-' + str(1), # `generateId` @ Line#10634
-		"xmlns": "md"},\
-		content= [ wap.WapNode(
-			tag="remove-companion-device",
-			content=None,
-			attrs={
-				"jid": wap.WapJid.createJidU(user=self.username, device=self.device, domain_type=0),
-				"reason": "user_initiated"
-			}
-		)]
+		_a =\
+		wap.WapNode(
+			tag = "iq", 
+			attrs = {
+				"to":wap.WapJid.create(user=None, server='s.whatsapp.net'), 
+				"type":"set",
+				"id": utils.generate_id(1),
+				"xmlns": "md"
+			},
+			content = [wap.WapNode(
+				tag="remove-companion-device",
+				content=None,
+				attrs={
+					"jid": wap.WapJid.createJidU(user=self.username, device=self.device, domain_type=0),
+					"reason": "user_initiated"
+				}
+			)]
 		)
 		print(_a)
-		t = wap.WapEncoder(_a).encode()
-		_buf = b'\x00' + t
+		_buf = b'\x00' + wap.WapEncoder(_a).encode()
 		enc = self.ws.noise_encrypt(_buf)
 		self.ws.send_frame(payload=enc)
 
@@ -407,13 +415,17 @@ if __name__ == "__main__":
 	ref_v = [parsed_dec.content[0].content[i].content for i in range(6)]
 	ref = ref_v[0]
 
-	_a = wap.WapJid.create(user=None, server='s.whatsapp.net')
-	_x = wap.WapNode(tag="iq", content=None, attrs={"to":_a, "type":'result', "id": parsed_dec.attrs['id']})
+	_x = wap.WapNode(
+		tag="iq", 
+		content=None, 
+		attrs = {
+			"to": wap.WapJid.create(user=None, server='s.whatsapp.net'), 
+			"type":'result', 
+			"id": parsed_dec.attrs['id']
+		}
+	)
 
-	t = wap.WapEncoder(_x).encode()
-
-	_buf = b'\x00' + t
-
+	_buf = b'\x00' +  wap.WapEncoder(_x).encode()
 	enc = client.ws.noise_encrypt(_buf)
 	client.ws.send_frame(payload=enc)
 
@@ -442,6 +454,9 @@ if __name__ == "__main__":
 	resp_node = wap.Y(dec_stream)
 	print(resp_node)
 
+	client.username = resp_node.content[0].content[2].attrs['jid']._jid.user
+	client.device = resp_node.content[0].content[2].attrs['jid']._jid.device
+
 	# refer to source @ Line #47716
 	adv_obj = msg_pb2.ADVSignedDeviceIdentityHMAC()
 	adv_obj.ParseFromString(resp_node.content[0].content[1].content)
@@ -462,7 +477,7 @@ if __name__ == "__main__":
 	signed_dev_ident.deviceSignature = curve.calculateSignature(secrets.token_bytes(64),\
 	client.cident_key.private.data, buf)
 
-	# skip put identity in signal store
+	#TODO skip put identity in signal store
 
 	dev_ident  = msg_pb2.ADVDeviceIdentity()
 	dev_ident.ParseFromString(signed_dev_ident.details)
@@ -474,10 +489,24 @@ if __name__ == "__main__":
 	_ident.deviceSignature = signed_dev_ident.deviceSignature
 
 	_f = _ident.SerializeToString()
-	_a = wap.WapJid.create(user=None, server='s.whatsapp.net')
-	_b = wap.WapNode(tag="device-identity", attrs={'key-index': str(x)}, content=_f)
-	_c = wap.WapNode(tag="pair-device-sign", attrs={},  content= [_b])
-	_x = wap.WapNode(tag="iq", content=[_c], attrs={"to":_a, "type":'result', "id": resp_node.attrs['id']})
+	
+	_x =\
+	wap.WapNode(
+		tag = "iq",
+		attrs = {
+			"to": wap.WapJid.create(user=None, server='s.whatsapp.net'),
+			"type": "result",
+			"id": resp_node.attrs['id']
+		},
+		content = [
+			wap.WapNode(tag="pair-device-sign", 
+				attrs={}, 
+				content = [wap.WapNode(tag="device-identity", attrs={'key-index': str(x)}, content=_f)]
+			)
+		]
+	)
+
+
 
 	print(_x)
 	t = wap.WapEncoder(_x).encode()
@@ -502,26 +531,16 @@ if __name__ == "__main__":
 
 
 	# make a new client and send upto the client finish message
-	# # get client payload for login @ Line #61560
-	# # ref _.setMe)(i) @ Line #47800
+	# get client payload for login @ Line #61560
+	# ref _.setMe)(i) @ Line #47800
 	
-	reclient = Client(debug=False)
-	reclient.noise_info_iv = client.noise_info_iv
-	reclient.recovery_token = client.recovery_token
-	reclient.reg_id = client.reg_id
-	reclient.adv_secret_key = client.adv_secret_key
-	reclient.cstatic_key = client.cstatic_key
-	reclient.cephemeral_key = client.cephemeral_key
-	reclient.cident_key = client.cident_key
-
-
-
-	reclient.initiate_noise_handshake(login=True)
-	reclient.finish()
-	srv_resp = next(reclient.ws.recv_frame())
+	client.reset_conn()
+	client.initiate_noise_handshake(login=True)
+	client.finish()
+	srv_resp = next(client.ws.recv_frame())
 	
 	# refer to `_handleCiphertext on Line #11528
-	dec = reclient.ws.noise_decrypt(srv_resp)
+	dec = client.ws.noise_decrypt(srv_resp)
 	# assert len(dec) == 588
 
 	dec_stream = utils.create_stream(dec)
@@ -532,13 +551,13 @@ if __name__ == "__main__":
 	parsed_dec = wap.Y(dec_stream)
 	print(parsed_dec)
 	time.sleep(5)
-	reclient.logout()
+	client.logout()
 
 
 	while True:
-		for srv_resp in reclient.ws.recv_frame():
+		for srv_resp in client.ws.recv_frame():
 			# refer to `_handleCiphertext on Line #11528
-			dec = reclient.ws.noise_decrypt(srv_resp)
+			dec = client.ws.noise_decrypt(srv_resp)
 			# assert len(dec) == 588
 			dec_stream = utils.create_stream(dec)
 			if int.from_bytes(dec_stream.read(1), 'big') & 2 != 0:

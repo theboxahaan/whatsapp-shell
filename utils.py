@@ -2,6 +2,7 @@ import io
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives import serialization
 from typing import Union
+import secrets
 
 def get_Ed25519Key_bytes(key:Union[Ed25519PublicKey, Ed25519PrivateKey]=None) -> bytes:
 	"""
@@ -44,3 +45,12 @@ def create_stream(buffer:bytes=None) -> io.BytesIO:
 	"""
 	stream = io.BytesIO(buffer)
 	return stream
+
+
+def generate_id(index:int=1):
+	"""
+		`generateId` @ Line#10634
+	"""
+	return str(int.from_bytes(secrets.token_bytes(2), 'big'))\
+				 + '.' + str(int.from_bytes(secrets.token_bytes(2), 'big'))\
+				 + '-' + str(index)
