@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from typing import Union
 import json
 import math
-
+import re
 
 with open('L_act.json', 'r') as fd:
 	_j = json.load(fd)
@@ -202,11 +202,11 @@ class WapEncoder:
 						a |= o
 						n.write(a.to_bytes(1, 'big'))
 			#FIXME implement proper regex 
-			if '-' not in string:
+			if not re.match(r'[^0-9.-]+', string):
 				B(string, 255, buffer)
 				return
-		#FIXME
-		# this should not be called atleast till the handshake is complete 
+			if not re.match(r'[^0-9A_F]+', string):
+				B(string, 251, buffer)
 		self._x(r, buffer)
 		buffer.write(string.encode('utf-8'))
 		# t.writeString(e)
@@ -214,7 +214,7 @@ class WapEncoder:
 
 	def _wap_encode(self, obj:Union[WapNode, WapJid, bytes, str]=None, buffer:io.BytesIO=None):
 		"""
-		renamed from function `N(e, t:io.BytesIO=None)`
+		renamed from function `N(e, t:io.BytesIO=None)` @ Line #10736
 		"""
 		if obj is None:
 			buffer.write(b'\x00')
@@ -223,7 +223,10 @@ class WapEncoder:
 		elif isinstance(obj, WapJid):
 			n = obj.get_inner_jid()
 			if n.type == _C.WAP_JID_SUBTYPE.JID_U:
-				raise NotImplementedError
+				buffer.write(int(247).to_bytes(1, 'big'))
+				buffer.write(n.domainType.to_bytes(1, 'big'))
+				buffer.write(n.device.to_bytes(1, 'big'))
+				self._wap_encode(n.user, buffer)
 			elif n.type == _C.WAP_JID_SUBTYPE.JID_FB:
 				raise NotImplementedError
 			else:
