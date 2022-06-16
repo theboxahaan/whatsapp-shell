@@ -81,8 +81,9 @@ iQMKMMXRr+eBUvmiDk6pvlqgDiy9OIEfB4CL8UXzOWw=,foXo8hoDLJkOYBiJQ245dgEASibGYkpaaOv
 - [x] Correctly send device pairing info to the server. Don't know for sure if it's correct though.
 - [x] After a correct message containing pairing device info is sent, the server terminates the cnx
 with a `515` error message. Now a new login session needs to be started.
-- [ ] `bad-mac` stanza after sending a `logout` request. Could it be because the keys are reset after the 
+- [x] `bad-mac` stanza after sending a `logout` request. Could it be because the keys are reset after the 
 successful login stanza. We do get `companion_enc_static` in that stanza.
+- [ ] Server is probably expecting a response from client after sending the `streamend` reply
 - [ ] Refactor `wap.py`
 - [ ] Refactor `wshell.py`
 - [ ] Replicate `libsignal-protocol`'s signing algo and see how it is diff from `DJM`

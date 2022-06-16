@@ -1,4 +1,5 @@
 import secrets
+import time
 import qrcode
 import io
 import hmac
@@ -366,7 +367,8 @@ class Client(object):
 		_a = wap.WapNode(tag="iq", attrs={
 		"to":wap.WapJid.create(user=None, server='s.whatsapp.net'), 
 		"type":"set",
-		"id": '8512.41713-136', # `generateId` @ Line#10634
+		"id": str(int.from_bytes(secrets.token_bytes(2), 'big')) + '.'\
+		+ str(int.from_bytes(secrets.token_bytes(2), 'big')) + '-' + str(1), # `generateId` @ Line#10634
 		"xmlns": "md"},\
 		content= [ wap.WapNode(
 			tag="remove-companion-device",
@@ -380,21 +382,8 @@ class Client(object):
 		print(_a)
 		t = wap.WapEncoder(_a).encode()
 		_buf = b'\x00' + t
-		enc = client.ws.noise_encrypt(_buf)
+		enc = self.ws.noise_encrypt(_buf)
 		self.ws.send_frame(payload=enc)
-		while True:
-			for srv_resp in reclient.ws.recv_frame():
-				# refer to `_handleCiphertext on Line #11528
-				dec = reclient.ws.noise_decrypt(srv_resp)
-				# assert len(dec) == 588
-
-				dec_stream = utils.create_stream(dec)
-				if int.from_bytes(dec_stream.read(1), 'big') & 2 != 0:
-					print(f'might need to gzip inflate')
-					raise NotImplementedError
-	
-				parsed_dec = wap.Y(dec_stream)
-				print(parsed_dec)
 
 
 if __name__ == "__main__":
@@ -542,6 +531,19 @@ if __name__ == "__main__":
 	
 	parsed_dec = wap.Y(dec_stream)
 	print(parsed_dec)
-	import time
 	time.sleep(5)
 	reclient.logout()
+
+
+	while True:
+		for srv_resp in reclient.ws.recv_frame():
+			# refer to `_handleCiphertext on Line #11528
+			dec = reclient.ws.noise_decrypt(srv_resp)
+			# assert len(dec) == 588
+			dec_stream = utils.create_stream(dec)
+			if int.from_bytes(dec_stream.read(1), 'big') & 2 != 0:
+				print(f'might need to gzip inflate')
+				raise NotImplementedError
+			parsed_dec = wap.Y(dec_stream)
+			print(parsed_dec)
+
