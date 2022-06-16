@@ -79,8 +79,10 @@ iQMKMMXRr+eBUvmiDk6pvlqgDiy9OIEfB4CL8UXzOWw=,foXo8hoDLJkOYBiJQ245dgEASibGYkpaaOv
 	- [x] A ~250 byte response is sent from the server which I don't get yet. Get that msg
 	- [x] Repair the parser `Y`
 - [x] Correctly send device pairing info to the server. Don't know for sure if it's correct though.
-- [ ] After a correct message containing pairing device info is sent, the server terminates the cnx
+- [x] After a correct message containing pairing device info is sent, the server terminates the cnx
 with a `515` error message. Now a new login session needs to be started.
+- [ ] `bad-mac` stanza after sending a `logout` request. Could it be because the keys are reset after the 
+successful login stanza. We do get `companion_enc_static` in that stanza.
 - [ ] Refactor `wap.py`
 - [ ] Refactor `wshell.py`
 - [ ] Replicate `libsignal-protocol`'s signing algo and see how it is diff from `DJM`
