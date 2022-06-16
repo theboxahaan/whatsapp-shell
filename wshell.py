@@ -251,8 +251,11 @@ class Client(object):
 		"""
 		`getClientPayloadForLogin` @ Line #61560
 		"""
-		d = {'username':int(resp_node.content[0].content[2].attrs['jid']._jid.user),
-				 'device' : resp_node.content[0].content[2].attrs['jid']._jid.device
+		self.username = resp_node.content[0].content[2].attrs['jid']._jid.user
+		self.device = resp_node.content[0].content[2].attrs['jid']._jid.device
+
+		d = {'username': int(self.username),
+				 'device'  : self.device
 				}
 		print(d)
 		pyld_spec = msg_pb2.ClientPayloadSpec()
@@ -353,6 +356,45 @@ class Client(object):
 		"""
 		_k = self._extract_with_salt_and_expand(self.salt, b"")
 		self.ws.set_auth_keys(_k[:32], _k[32:])
+
+	def logout(self):
+		"""
+		`logout` on Line #162985
+		refs-
+		`u()` on Line #57599
+		"""
+		_a = wap.WapNode(tag="iq", attrs={
+		"to":wap.WapJid.create(user=None, server='s.whatsapp.net'), 
+		"type":"set",
+		"id": '8512.41713-136', # `generateId` @ Line#10634
+		"xmlns": "md"},\
+		content= [ wap.WapNode(
+			tag="remove-companion-device",
+			content=None,
+			attrs={
+				"jid": wap.WapJid.createJidU(user=self.username, device=self.device, domain_type=0),
+				"reason": "user_initiated"
+			}
+		)]
+		)
+		print(_a)
+		t = wap.WapEncoder(_a).encode()
+		_buf = b'\x00' + t
+		enc = client.ws.noise_encrypt(_buf)
+		self.ws.send_frame(payload=enc)
+		while True:
+			for srv_resp in reclient.ws.recv_frame():
+				# refer to `_handleCiphertext on Line #11528
+				dec = reclient.ws.noise_decrypt(srv_resp)
+				# assert len(dec) == 588
+
+				dec_stream = utils.create_stream(dec)
+				if int.from_bytes(dec_stream.read(1), 'big') & 2 != 0:
+					print(f'might need to gzip inflate')
+					raise NotImplementedError
+	
+				parsed_dec = wap.Y(dec_stream)
+				print(parsed_dec)
 
 
 if __name__ == "__main__":
@@ -500,3 +542,6 @@ if __name__ == "__main__":
 	
 	parsed_dec = wap.Y(dec_stream)
 	print(parsed_dec)
+	import time
+	time.sleep(5)
+	reclient.logout()
