@@ -21,6 +21,7 @@ import axolotl_curve25519 as curve
 import utils
 from frame import FrameSocket
 
+
 class Client(object):
 	"""
 	class to represent a client instance
@@ -214,13 +215,6 @@ class Client(object):
 		
 		payload : @return proto
 		"""
-		# this is the b64encoded string returned by memoizeWithArgs("2.2220.8")
-		# on Line #60393
-		# UPDATE
-		# - memoizeWithArgs("2.2220.8") basically maps the version no to its MD5 hash
-		# - _r = MD5("2.2220.8")
-		# - a.k.a as the build hash
-
 		if reg_info is None:
 			reg_info = self._get_registration_info()
 		if key_info is None:
@@ -228,6 +222,12 @@ class Client(object):
 		if t is None:
 			t = {'passive':False, 'pull':False}
 
+		# this is the b64encoded string returned by memoizeWithArgs("2.2220.8")
+		# on Line #60393
+		# UPDATE
+		# - memoizeWithArgs("2.2220.8") basically maps the version no to its MD5 hash
+		# - _r = MD5("2.2220.8")
+		# - a.k.a as the build hash
 		_r = hashlib.md5(self.VERSION).digest()
 
 		# build client side protobufs
@@ -273,7 +273,6 @@ class Client(object):
 		"""
 		process server hello on line  61035 a.k.a `function w(e, t, n)`
 		"""
-		#TODO clean server ephemeral saving up
 		self.server_ephemeral = shello.ephemeral
 
 		self._shared_secret(pubkey=PublicKey(shello.ephemeral))
@@ -284,7 +283,7 @@ class Client(object):
 		self._mix_into_key()
 		_dec_payload = self._decrypt(shello.payload)
 		
-		# verifyChainCertificateWA6 Line #61025 skipped
+		#TODO verifyChainCertificateWA6 Line #61025 skipped
 
 
 	def _send_client_finish(self, login:bool=False):
@@ -408,7 +407,6 @@ if __name__ == "__main__":
 		raise NotImplementedError
 	
 	parsed_dec = wap.Y(dec_stream)
-	#print(f"parsed id ~> {parsed_dec.attrs['id']}")
 	ref_v = [parsed_dec.content[0].content[i].content for i in range(6)]
 	ref = ref_v[0]
 
@@ -451,6 +449,7 @@ if __name__ == "__main__":
 	resp_node = wap.Y(dec_stream)
 	print(resp_node)
 
+	#TODO write a `parse` function for `resp_node` to update client dicts
 	client.username = resp_node.content[0].content[2].attrs['jid']._jid.user
 	client.device = resp_node.content[0].content[2].attrs['jid']._jid.device
 
@@ -464,8 +463,7 @@ if __name__ == "__main__":
 	signed_dev_ident = msg_pb2.ADVSignedDeviceIdentity()
 	signed_dev_ident.ParseFromString(adv_obj.details)
 
-	#TODO
-	# skip signature validation @ Line #47750
+	#TODO skip signature validation @ Line #47750
 
 	# generate device signature
 	# on line #58285
@@ -505,8 +503,6 @@ if __name__ == "__main__":
 		]
 	)
 
-
-
 	print(_x)
 	t = wap.WapEncoder(_x).encode()
 	_buf = b'\x00' + t
@@ -540,7 +536,6 @@ if __name__ == "__main__":
 	
 	# refer to `_handleCiphertext on Line #11528
 	dec = client.ws.noise_decrypt(srv_resp)
-	# assert len(dec) == 588
 
 	dec_stream = utils.create_stream(dec)
 	if int.from_bytes(dec_stream.read(1), 'big') & 2 != 0:
