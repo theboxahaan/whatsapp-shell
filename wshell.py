@@ -34,26 +34,22 @@ class Client(object):
                recovery_token:bytes=None, static_private_bytes:bytes=None,\
                ephemeral_private_bytes:bytes=None, ident_private_bytes:bytes=None,\
                reg_id:bytes=None, debug:bool=False):
-		"""
-		counter   :@updatable
-		cryptokey :@updateable
-		shared_key:@updateable
-		salt      :@updateable
-		hash      :@updateable
-		"""
-		self.counter        = 0
-		self.cryptokey      = None
-		self.shared_key     = None
-		self.salt           = self.INIT_SALT
-		self.hash           = self.INIT_SALT
-		self.prekey_id      = prekey_id or 0
-		self.noise_info_iv  = noise_info_iv or [be(secrets.token_bytes(16)) for _ in range(3)]
-		# recover_token set by refreshNoiseCredentials()
-		self.recovery_token = recovery_token or secrets.token_bytes(24)
-		self.reg_id         = reg_id or secrets.token_bytes(2)
-		self.ws             = FrameSocket(debug=debug)
-		self.adv_secret_key = be(secrets.token_bytes(32))
-		self.debug          = debug
+		
+		self.counter          = 0
+		self.cryptokey        = None
+		self.shared_key       = None
+		self.salt             = self.INIT_SALT
+		self.hash             = self.INIT_SALT
+		self.prekey_id        = prekey_id or 0
+		self.reg_id           = reg_id or secrets.token_bytes(2)
+		self.ws               = FrameSocket(debug=debug)
+		self.adv_secret_key   = be(secrets.token_bytes(32))
+		self.debug            = debug or False
+
+		self.username         = None
+		self.device           = None
+
+		self.server_ephemeral = None
 
 		#------------------[CLIENT KEYS]-----------------#
 		# set by refreshNoiseCredentials() Line #61186
@@ -68,15 +64,19 @@ class Client(object):
 		if ident_private_bytes is not None:
 			ident_private_bytes = PrivateKey(ident_private_bytes)
 		self.cident_key = X25519DH().generate_keypair(privatekey=ident_private_bytes)
-		
+
+
+		#---------------------[UNUSED]--------------------#
 		#------------------[CLIENT DICTS]-----------------#
 		# stand ins for cookies and databases
 		self.meta                 = {"signal_last_spk_id": None}
 		self.signed_prekey_store  = {}
 		self._id_to_signed_prekey = {}
 
-		self.username = None
-		self.device   = None
+		self.noise_info_iv  = noise_info_iv or [be(secrets.token_bytes(16)) for _ in range(3)]
+
+		# recover_token set by refreshNoiseCredentials()
+		self.recovery_token = recovery_token or secrets.token_bytes(24)
 
 
 	def reset_conn(self):
