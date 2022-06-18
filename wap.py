@@ -6,13 +6,7 @@ import math
 import re
 
 with open('L_act.json', 'r') as fd:
-	_j = json.load(fd)
-
-_L = SimpleNamespace(**{
-	'DICTIONARIES': _j['DICTIONARIES'],
-	'SINGLE_BYTE_TOKEN': _j['SINGLE_BYTE_TOKEN']
-})
-
+	_L = SimpleNamespace(**json.load(fd))
 
 
 _E = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
