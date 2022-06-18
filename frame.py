@@ -9,7 +9,8 @@ class FrameSocket:
 	websocket_url = "wss://web.whatsapp.com/ws/chat"
 	header = ["User-Agent: Chrome/100.0.4896.127"]
 	cookie_str = 'wa_lang_pref=en; wa_beta_version=production%2F1654038811%2F2.2220.8'
-
+	host = "web.whatsapp.com"
+	origin = "https://web.whatsapp.com"
 	def __init__(self, ws:websocket=None, debug:bool=False):
 		self.ws = ws
 		self.noise_enc = None
@@ -26,8 +27,8 @@ class FrameSocket:
 		opens a websocket connection with the server
 		"""
 		self.ws = websocket.WebSocket()
-		self.ws.connect(self.websocket_url, header=self.header, origin="https://web.whatsapp.com",\
-		host="web.whatsapp.com", cookie=self.cookie_str)
+		self.ws.connect(self.websocket_url, header=self.header, origin=self.origin,\
+		host=self.host, cookie=self.cookie_str)
 	
 	
 	def send_frame(self, intro_bytes:bytes=None, payload:bytes=None) -> int:
