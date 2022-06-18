@@ -1,4 +1,5 @@
 import secrets
+import hashlib
 import time
 import qrcode
 import io
@@ -26,6 +27,7 @@ class Client(object):
 	"""
 	INIT_SALT = b"Noise_XX_25519_AESGCM_SHA256\x00\x00\x00\x00"
 	WA_HEADER = b"\x57\x41\x06\02" 
+	VERSION   = b"2.2220.8"
 
 
 	def __init__(self, prekey_id:int=None, noise_info_iv:list=None,\
@@ -226,9 +228,7 @@ class Client(object):
 		if t is None:
 			t = {'passive':False, 'pull':False}
 
-		_digest = hashes.Hash(hashes.MD5())
-		_digest.update(b"2.2220.8")
-		_r = _digest.finalize()
+		_r = hashlib.md5(self.VERSION).digest()
 
 		# build client side protobufs
 		spec = msg_pb2.CompanionPropsSpec()
