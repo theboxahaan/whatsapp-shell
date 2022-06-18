@@ -23,9 +23,6 @@ from frame import FrameSocket
 class Client(object):
 	"""
 	class to represent a client instance
-	WARNING - side effects abound. This client is purposefully written to reflect the JS
-	client and hence it has a lot of side effects. However, the side effects are limited
-	to the Client objects own parameters
 	"""
 	INIT_SALT = b"Noise_XX_25519_AESGCM_SHA256\x00\x00\x00\x00"
 	WA_HEADER = b"\x57\x41\x06\02" 
