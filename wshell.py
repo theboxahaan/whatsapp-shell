@@ -80,7 +80,11 @@ class Client(object):
 
 
 	def reset_conn(self):
-		"""reset `Client` so that it can be re-used for login after registration"""
+		"""
+		reset `Client` object so that it can be re-used for login after registration
+		@updates - `self.counter`, `self.cryptokey`, `self.shared_key`, `self.salt`,
+		           `self.salt`, `self.hash`, `self.ws`
+		"""
 		self.counter = 0
 		self.cryptokey = None
 		self.shared_key = None
@@ -88,10 +92,14 @@ class Client(object):
 		self.hash = self.INIT_SALT
 		self.ws = FrameSocket(self.debug)
 
+
 	def _gen_signed_prekey(self, private_bytes:bytes=None):
 		"""
 		generates PreShareKeys and signs the public key with the Identity Key
+		@updates `self.prekey` and `self.prekey_sig`
+
 		UPDATE
+		------
 		implements the ed25519 signing algo used by libsignal-protocol. It is different from
 		the Ed25519 signing used by other libraries - needs to be explored.
 		Ref-
@@ -107,17 +115,20 @@ class Client(object):
 
 
 	def _get_registration_info(self) -> tuple:
-		""" get registration info """
+		"""get registration info (the identity info)"""
 		return (self.reg_id, self.cident_key.public, self.cident_key.private)
 
 
 	def _get_signed_prekey(self) -> tuple:
-		""" get prekey w/ signature """
+		"""get prekey info w/ signature"""
 		return (self.prekey_id, self.prekey.public, self.prekey.private, self.prekey_sig)
 
 
 	def _rotate_signed_prekey(self):
-		""" set prekey id and set in meta dict """
+		"""
+		set prekey id and set in meta dict
+		@updates `self.prekey_id` and `self.meta`
+		"""
 		self.prekey_id += 1
 		self.meta['signal_last_spk_id'] = self.prekey_id
 
@@ -126,6 +137,9 @@ class Client(object):
 		"""
 		sharedSecret function on Line#35247
 		update the self.shared_secret key by mixing the ephemeral keypair with the pubkey
+		@arg keypair - keypair for the private key 
+		@arg pubkey  - public key to be mixed
+		@updates `self.shared_key`
 		"""
 		if keypair is None:
 			keypair = self.cephemeral_key
@@ -133,9 +147,12 @@ class Client(object):
 		return self.shared_key
 
 
-	def _extract_with_salt_and_expand(self, salt:bytes=None, key_material:bytes=None):
+	def _extract_with_salt_and_expand(self, salt:bytes=None, key_material:bytes=None) -> bytes:
 		"""
 		reconstruction of `extractWithSaltAndExpand` on Line #11384
+		@arg salt - salt to derive the key
+		@arg key_material - key material to derive the `key`
+		@return hkdf derived key from the salt
 		"""
 		if salt is None:
 			salt = self.salt
@@ -146,8 +163,10 @@ class Client(object):
 
 	def _mix_into_key(self, salt:bytes=None, key_material:bytes=None):
 		"""
-		update self.salt, self.cryptokey using an hkdf
 		reconstruction of `mixIntoKey` found on Line #11482
+		@arg salt - salt to be used for the key derivation
+		@arg key_material - key material that is used by hte hkdf
+		@updates - `self.counter`, `self.salt`, `self.cryptokey`
 		"""
 		self.counter = 0
 		if salt is None:
@@ -162,7 +181,7 @@ class Client(object):
 	def _authenticate(self, e:bytes=None):
 		"""
 		authentication function used for something :/
-		update self.hash
+		@updates `self.hash`
 		"""
 		_i = self.hash + e
 		self.hash = hashlib.sha256(_i).digest()
@@ -245,7 +264,8 @@ class Client(object):
 				'eRegid': b'\x00\x00' + reg_info[0],
 				'eSkeyId': key_info[0].to_bytes(3, 'big'),
 				'eSkeySig': key_info[3],
-				'eSkeyVal': key_info[1].data
+				'eSkeyVal': key_info[1].data,
+				'eKeytype': b'\x05'
 			}
 		})
 		return pyld_spec.SerializeToString()
@@ -256,7 +276,7 @@ class Client(object):
 		`getClientPayloadForLogin` @ Line #61560
 		"""
 		pyld_spec = msg_pb2.ClientPayloadSpec()
-		proto_utils.update_protobuf(pyld_spec, proto_utils.defaults.ClientPayloadSpec1)
+		proto_utils.update_protobuf(pyld_spec, proto_utils.defaults.ClientPayloadSpec)
 		proto_utils.update_protobuf(pyld_spec, {
 			'passive':True,
 			'pull':False,
