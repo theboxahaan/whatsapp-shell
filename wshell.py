@@ -1,7 +1,6 @@
 import secrets
 import hashlib
 import time
-import qrcode
 import io
 import hmac
 import traceback
@@ -424,22 +423,12 @@ if __name__ == "__main__":
 	enc = client.ws.noise_encrypt(_buf)
 	client.ws.send_frame(payload=enc)
 
-	qr_string = ref.decode() + "," + be(client.cstatic_key.public.data).decode() + ","\
-	+ be(client.cident_key.public.data).decode() + ","\
-	+ client.adv_secret_key.decode()
-
-	print('qr string >', qr_string)
-
-	#FIXME scaling issue when using print_tty
-	qr = qrcode.QRCode(
-			version=1,
-			error_correction=qrcode.constants.ERROR_CORRECT_L,
-			box_size=5,
-			border=2
-	)
-	qr.add_data(qr_string)
-	qr.make(fit=True)
-	qr.print_ascii(tty=True, invert=True)
+	qr_list = [ref.decode(), 
+		be(client.cstatic_key.public.data).decode(), 
+		be(client.cident_key.public.data).decode(),
+		client.adv_secret_key.decode()
+	]
+	utils.render_qr(qr_list)
 
 	# recieve servers reponse
 	# expecting just a single response

@@ -1,4 +1,5 @@
 import io
+import qrcode
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives import serialization
 from typing import Union
@@ -54,3 +55,24 @@ def generate_id(index:int=1):
 	return str(int.from_bytes(secrets.token_bytes(2), 'big'))\
 				 + '.' + str(int.from_bytes(secrets.token_bytes(2), 'big'))\
 				 + '-' + str(index)
+
+def render_qr(input_list:list=None, debug:bool=False):
+	#TODO add other control parameters
+	"""
+	utility function to render QR codes given a list of strings
+	@arg - input_list : list of strings that will be `,` concatenated and used for the QR
+	"""
+	qr_string = ",".join(input_list)
+	if debug:
+		print('qr string >', qr_string)
+
+	#FIXME scaling issue when using print_tty
+	qr = qrcode.QRCode(
+			version=1,
+			error_correction=qrcode.constants.ERROR_CORRECT_L,
+			box_size=5,
+			border=2
+	)
+	qr.add_data(qr_string)
+	qr.make(fit=True)
+	qr.print_ascii(tty=True, invert=True)
