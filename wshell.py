@@ -418,12 +418,7 @@ if __name__ == "__main__":
 	dec = client.ws.noise_decrypt(srv_resp)
 	assert len(dec) == 588
 
-	dec_stream = utils.create_stream(dec)
-	if int.from_bytes(dec_stream.read(1), 'big') & 2 != 0:
-		print(f'might need to gzip inflate')
-		raise NotImplementedError
-	
-	parsed_dec = wap.Y(dec_stream)
+	parsed_dec = wap.WapDecoder(dec).decode()
 	ref_v = [parsed_dec.content[0].content[i].content for i in range(6)]
 	ref = ref_v[0]
 
@@ -451,9 +446,7 @@ if __name__ == "__main__":
 	# recieve servers reponse
 	# expecting just a single response
 	dec = client.ws.noise_decrypt(next(client.ws.recv_frame()))
-	dec_stream = utils.create_stream(dec)
-	dec_stream.read(1)
-	resp_node = wap.Y(dec_stream)
+	resp_node = wap.WapDecoder(dec).decode()
 	print(resp_node)
 
 	#TODO write a `parse` function for `resp_node` to update client dicts
@@ -520,10 +513,7 @@ if __name__ == "__main__":
 
 	for resp in client.ws.recv_frame():
 		dec = client.ws.noise_decrypt(resp)
-		t = utils.create_stream(dec)
-		t.read(1)
-		s = wap.Y(t)
-		#print(s.attrs, s.tag, s.content)
+		s = wap.WapDecoder(dec).decode()
 		print(s)
 
 	try:
@@ -543,12 +533,7 @@ if __name__ == "__main__":
 	# refer to `_handleCiphertext on Line #11528
 	dec = client.ws.noise_decrypt(srv_resp)
 
-	dec_stream = utils.create_stream(dec)
-	if int.from_bytes(dec_stream.read(1), 'big') & 2 != 0:
-		print(f'might need to gzip inflate')
-		raise NotImplementedError
-	
-	parsed_dec = wap.Y(dec_stream)
+	parsed_dec = wap.WapDecoder(dec).decode()
 	print(parsed_dec)
 	time.sleep(5)
 	client.logout()
@@ -558,10 +543,6 @@ if __name__ == "__main__":
 		for srv_resp in client.ws.recv_frame():
 			# refer to `_handleCiphertext on Line #11528
 			dec = client.ws.noise_decrypt(srv_resp)
-			dec_stream = utils.create_stream(dec)
-			if int.from_bytes(dec_stream.read(1), 'big') & 2 != 0:
-				print(f'might need to gzip inflate')
-				raise NotImplementedError
-			parsed_dec = wap.Y(dec_stream)
+			parsed_dec = wap.WapDecoder(dec).decode()
 			print(parsed_dec)
 

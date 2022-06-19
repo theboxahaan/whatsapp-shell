@@ -5,6 +5,8 @@ import json
 import math
 import re
 
+import utils
+
 with open('L_act.json', 'r') as fd:
 	_L = SimpleNamespace(**json.load(fd))
 
@@ -159,7 +161,6 @@ class WapEncoder:
 		
 		r = len(string)		# replace numUtf8Bytes
 		if r < 128:
-			#FIXME skipping the regex check assume `True` both times
 			# function B(e, t, n) @Line #10827 --- B(e,255,t)
 			def B(e,t,n):
 				r = (len(e) % 2) == 1
@@ -172,7 +173,6 @@ class WapEncoder:
 				for _r in range(len(e)):
 					i = ord(e[_r])
 					o = None
-					# long ass if condition which if True, raise Error `Cannot nibble encode`
 					if 48 <= i and i <= 57:
 						o = i-48
 					else:
@@ -195,11 +195,10 @@ class WapEncoder:
 					else:
 						a |= o
 						n.write(a.to_bytes(1, 'big'))
-			#FIXME implement proper regex 
 			if not re.match(r'[^0-9.-]+', string):
 				B(string, 255, buffer)
 				return
-			if not re.match(r'[^0-9A_F]+', string):
+			if not re.match(r'[^0-9A-F]+', string):
 				B(string, 251, buffer)
 		self._x(r, buffer)
 		buffer.write(string.encode('utf-8'))
@@ -268,175 +267,187 @@ _C = SimpleNamespace(**{
 })
 
 
-def j(e:io.BytesIO=None, t:int=None):
-	'''
-	function `j` at Line #10943
-	'''
-	n = []
-	for i in range(t):
-		n.append(Y(e))
-	return n
+class WapDecoder:
 
+	def __init__(self, buffer:bytes=None):
+		self._buffer = utils.create_stream(buffer)
 
-def H(e, t, n, r):
-	'''
-	function `H(e,t,n,r)` defined at Line #10985
-	'''
-	# print(f'val of n,r ~> {n,r}')
-	i = [None for _ in range(2*r - n) ]
-	for _n in range(0, len(i) - 1, 2):
-		r = int.from_bytes(e.read(1), 'big')
-		i[_n] = t[rshift(r, 4)]
-		i[_n+1] = t[15 & r]
-	if n:
-		n = int.from_bytes(e.read(1), 'big')
-		i[len(i) - 1] = t[rshift(n , 4)]
-	# print("".join(i))
-	return "".join(i)
-
-
-def W(e, t, extra:bool):
-	'''
-	function at Line #10980
-	'''
-	# print('extra> ', extra)
-	if extra is True:
-		return e.read(t).decode('utf-8')
-	else:
-		return e.read(t)
-
-
-def F(e:io.BytesIO=None, t:bool=None, debug:bool=False):
-	'''
-	function `F(e,t)` on Line #10862
-	'''
-	n = int.from_bytes(e.read(1), 'big')
-	if debug:
-		print(f'val of `n` is > {n}')
-	if n == 0:
-		return None
-	if n == 248:
-		return j(e, int.from_bytes(e.read(1), 'big'))
-	if n == 249:
-		return j(e, int.from_bytes(e.read(2), 'big'))
-	if n == 252:
-		n = int.from_bytes(e.read(1), 'big')
-		return W(e, n, t)
-	if n == 253:
-		n = int.from_bytes(e.read(1), 'big')
-		r = int.from_bytes(e.read(1))
-		i = int.from_bytes(e.read(1))
-		return W(e, ((15 & n) << 16) + (r << 8) + i, t)
-	if n == 254:
-		n = int.from_bytes(e.read(4), 'big')
-		return W(e, n, t)
-	if n == 250:
-		t = F(e, True)
-		if not isinstance(t, str) and t is not None:
-			print('decode string got invalid value')
-			print('error ->', t)
-		n = K(e)
-		return _C.WapJid.create(t, n)
-	if n == 246:
-		print('yet to implement 246')
-		raise NotImplementedError
-	if n == 247:
-		# returns a val but does so weirdly
-		n = int.from_bytes(e.read(1), 'big')
-		if n == 0:
-			t = _C.DOMAIN_TYPE.WHATSAPP
+	def j(self, e:io.BytesIO=None, t:int=None):
+		'''
+		function `j` at Line #10943
+		'''
+		n = []
+		for i in range(t):
+			n.append(self.Y(e))
+		return n
+	
+	
+	def H(self, e, t, n, r):
+		'''
+		function `H(e,t,n,r)` defined at Line #10985
+		'''
+		# print(f'val of n,r ~> {n,r}')
+		i = [None for _ in range(2*r - n) ]
+		for _n in range(0, len(i) - 1, 2):
+			r = int.from_bytes(e.read(1), 'big')
+			i[_n] = t[rshift(r, 4)]
+			i[_n+1] = t[15 & r]
+		if n:
+			n = int.from_bytes(e.read(1), 'big')
+			i[len(i) - 1] = t[rshift(n , 4)]
+		# print("".join(i))
+		return "".join(i)
+	
+	
+	def W(self, e, t, extra:bool):
+		'''
+		function at Line #10980
+		'''
+		# print('extra> ', extra)
+		if extra is True:
+			return e.read(t).decode('utf-8')
 		else:
-			if n != 1:
-				print('decode JidU error')
-			t = _C.DOMAIN_TYPE.LID
-		r = int.from_bytes(e.read(1), 'big')
-		i = K(e)
-		return _C.WapJid.createJidU(i, t, r)
-	if n == 255:
-		t = int.from_bytes(e.read(1), 'big')
-		return H(e, _y, rshift(t, 7), 127 & t )
-	if n == 251:
-		t = int.from_bytes(e.read(1), 'big')
-		if debug:
-			print(f'vale of F_t is > {t}, {rshift(t,7)}')
-		return H(e, _E, rshift(t, 7), 127 & t)
-	if n <=0 or n >=240:
-		print('unable to decode WAPBuffer')
-	if n >=236 and n <=239:
-		t = n - 236
-		r = _L.DICTIONARIES[t]
-		if r is None:
-			print('Missing WAP dict')
-		i = int.from_bytes(e.read(1), 'big')
-		a = r[i]
-		if a is None:
-			print('invalid value index')
-		return a
-	r = _L.SINGLE_BYTE_TOKEN[n-1]
-	if r is None:
-		print('undefined token')
-	return r
-
-
-
-def K(e:io.BytesIO=None):
-	'''
-	function returns the Key in a K,V pair
-	'''
-	t = F(e, True, False)
-	if not isinstance(t, str):
-		print('decode string got invalid argument')
-	return t
-
-
-def M(e, *args):
-	'''
-	class at Line #10665
-	'''
-	t = args[0] if len(args) > 0 else {}
-	n = args[1] if len(args) > 1 else None
-
-	return WapNode(tag=e, attrs=t, content=n)
-
-
-def Y(e:io.BytesIO=None):
-	"""
-	function `Y(e)` on Line #10949
-	"""
-	t = int.from_bytes(e.read(1), 'big')
-	if t == 248:
+			return e.read(t)
+	
+	
+	def F(self, e:io.BytesIO=None, t:bool=None, debug:bool=False):
+		'''
+		function `F(e,t)` on Line #10862
+		'''
 		n = int.from_bytes(e.read(1), 'big')
-	else:
-		if t != 249:
-			print('type byte is invalid')
-		n = int.from_bytes(e.read(2), 'big')
+		if debug:
+			print(f'val of `n` is > {n}')
+		if n == 0:
+			return None
+		if n == 248:
+			return self.j(e, int.from_bytes(e.read(1), 'big'))
+		if n == 249:
+			return self.j(e, int.from_bytes(e.read(2), 'big'))
+		if n == 252:
+			n = int.from_bytes(e.read(1), 'big')
+			return self.W(e, n, t)
+		if n == 253:
+			n = int.from_bytes(e.read(1), 'big')
+			r = int.from_bytes(e.read(1))
+			i = int.from_bytes(e.read(1))
+			return self.W(e, ((15 & n) << 16) + (r << 8) + i, t)
+		if n == 254:
+			n = int.from_bytes(e.read(4), 'big')
+			return self.W(e, n, t)
+		if n == 250:
+			t = self.F(e, True)
+			if not isinstance(t, str) and t is not None:
+				print('decode string got invalid value')
+				print('error ->', t)
+			n = self.K(e)
+			return _C.WapJid.create(t, n)
+		if n == 246:
+			print('yet to implement 246')
+			raise NotImplementedError
+		if n == 247:
+			# returns a val but does so weirdly
+			n = int.from_bytes(e.read(1), 'big')
+			if n == 0:
+				t = _C.DOMAIN_TYPE.WHATSAPP
+			else:
+				if n != 1:
+					print('decode JidU error')
+				t = _C.DOMAIN_TYPE.LID
+			r = int.from_bytes(e.read(1), 'big')
+			i = self.K(e)
+			return _C.WapJid.createJidU(i, t, r)
+		if n == 255:
+			t = int.from_bytes(e.read(1), 'big')
+			return self.H(e, _y, rshift(t, 7), 127 & t )
+		if n == 251:
+			t = int.from_bytes(e.read(1), 'big')
+			if debug:
+				print(f'vale of F_t is > {t}, {rshift(t,7)}')
+			return self.H(e, _E, rshift(t, 7), 127 & t)
+		if n <=0 or n >=240:
+			print('unable to decode WAPBuffer')
+		if n >=236 and n <=239:
+			t = n - 236
+			r = _L.DICTIONARIES[t]
+			if r is None:
+				print('Missing WAP dict')
+			i = int.from_bytes(e.read(1), 'big')
+			a = r[i]
+			if a is None:
+				print('invalid value index')
+			return a
+		r = _L.SINGLE_BYTE_TOKEN[n-1]
+		if r is None:
+			print('undefined token')
+		return r
 	
-	i = None
-	if n == 0:
-		print('failed to decode node')
 	
-	a = K(e)
-	r = {}
-	n -= 1
-	while n > 1:
-		# get the key
-		t = K(e)
-		#print(f'K(e) returned > {t}')
-		# get the value
-		_i = F(e, True, False)
-		#print(f'f(e) returned > {i}')
-		r[t] = _i
-		n -= 2
-	if n == 1:
-		i = F(e, False)
-	if isinstance(i, WapJid):
-		# i = String(i)
-		i = f'empty string for now'
+	
+	def K(self, e:io.BytesIO=None):
+		'''
+		function returns the Key in a K,V pair
+		'''
+		t = self.F(e, True, False)
+		if not isinstance(t, str):
+			print('decode string got invalid argument')
+		return t
+	
+	
+	def M(self, e, *args):
+		'''
+		class at Line #10665
+		'''
+		t = args[0] if len(args) > 0 else {}
+		n = args[1] if len(args) > 1 else None
+	
+		return WapNode(tag=e, attrs=t, content=n)
+	
+	
+	def Y(self, e:io.BytesIO=None):
+		"""
+		function `Y(e)` on Line #10949
+		"""
+		t = int.from_bytes(e.read(1), 'big')
+		if t == 248:
+			n = int.from_bytes(e.read(1), 'big')
+		else:
+			if t != 249:
+				print('type byte is invalid')
+			n = int.from_bytes(e.read(2), 'big')
+		
+		i = None
+		if n == 0:
+			print('failed to decode node')
+		
+		a = self.K(e)
+		r = {}
+		n -= 1
+		while n > 1:
+			# get the key
+			t = self.K(e)
+			#print(f'K(e) returned > {t}')
+			# get the value
+			_i = self.F(e, True, False)
+			#print(f'f(e) returned > {i}')
+			r[t] = _i
+			n -= 2
+		if n == 1:
+			i = self.F(e, False)
+		if isinstance(i, WapJid):
+			# i = String(i)
+			i = f'empty string for now'
+	
+		return self.M(a,r,i)
 
-	return M(a,r,i)
+	def inflate(self):
+		print("gzip inflate not implemented")
+		raise NotImplementedError
 
-
-if __name__ == '__main__':
-	s = create_stream(b'1234567890')
-	for _ in range(10):
-		print(s.read(1))
+	def decode(self, buffer:io.BytesIO = None):
+		if buffer is None:
+			buffer = self._buffer
+		
+		if int.from_bytes(buffer.read(1), 'big') & 2 !=0:
+			buffer = self.inflate(buffer)
+		
+		return self.Y(buffer)
