@@ -88,6 +88,7 @@ successful login stanza. We do get `companion_enc_static` in that stanza.
 - [ ] Refactor `wshell.py`
 - [ ] Replicate `libsignal-protocol`'s signing algo and see how it is diff from `DJM`
 - [ ] Retrieve Messages
+- [ ] `async`ify the `Client`
 
 
 ## Notes

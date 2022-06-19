@@ -368,9 +368,10 @@ class Client(object):
 		self._process_server_hello(shello.serverHello)
 
 		self._send_client_finish(login)
+		self._finish()
 
 
-	def finish(self):
+	def _finish(self):
 		"""
 		create two AESGCM objects for encryption/decryption respectively
 		"""
@@ -411,7 +412,6 @@ if __name__ == "__main__":
 	
 	client = Client(debug=False)
 	client.initiate_noise_handshake()
-	client.finish()
 	srv_resp = next(client.ws.recv_frame())
 	
 	# refer to `_handleCiphertext on Line #11528
@@ -538,7 +538,6 @@ if __name__ == "__main__":
 	
 	client.reset_conn()
 	client.initiate_noise_handshake(login=True)
-	client.finish()
 	srv_resp = next(client.ws.recv_frame())
 	
 	# refer to `_handleCiphertext on Line #11528
