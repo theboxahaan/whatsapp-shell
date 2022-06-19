@@ -239,6 +239,9 @@ class WapEncoder:
 
 
 	def encode(self):
+		"""
+		reference - `encodeStanza` @ Line #10599
+		"""
 		self._wap_encode(self.node, self.buffer)
 		self.buffer.seek(0)
 		return self.buffer.read()

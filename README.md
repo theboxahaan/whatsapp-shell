@@ -84,8 +84,8 @@ with a `515` error message. Now a new login session needs to be started.
 - [x] `bad-mac` stanza after sending a `logout` request. Could it be because the keys are reset after the 
 successful login stanza. We do get `companion_enc_static` in that stanza.
 - [ ] Server is probably expecting a response from client after sending the `streamend` reply
-- [ ] Refactor `wap.py`
-- [ ] Refactor `wshell.py`
+- [x] Refactor `wap.py`
+- [x] Refactor `wshell.py`
 - [ ] Replicate `libsignal-protocol`'s signing algo and see how it is diff from `DJM`
 - [ ] Retrieve Messages
 - [ ] `async`ify the `Client`
