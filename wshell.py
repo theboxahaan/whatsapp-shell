@@ -165,9 +165,7 @@ class Client(object):
 		update self.hash
 		"""
 		_i = self.hash + e
-		digest = hashes.Hash(hashes.SHA256())
-		digest.update(_i)
-		self.hash = digest.finalize()
+		self.hash = hashlib.sha256(_i).digest()
 
 
 	def _encrypt(self, pt:bytes=None) -> bytes:
@@ -541,7 +539,6 @@ if __name__ == "__main__":
 		for srv_resp in client.ws.recv_frame():
 			# refer to `_handleCiphertext on Line #11528
 			dec = client.ws.noise_decrypt(srv_resp)
-			# assert len(dec) == 588
 			dec_stream = utils.create_stream(dec)
 			if int.from_bytes(dec_stream.read(1), 'big') & 2 != 0:
 				print(f'might need to gzip inflate')
