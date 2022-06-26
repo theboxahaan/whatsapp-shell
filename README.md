@@ -104,3 +104,4 @@ using the `Ed25519` routines from the `cryptography/ed25519` library, they canno
 3. For now, I'm generating keys using `X25519()` and signing using a python binding for the `libsignal` lib.
 4. Also take a look at whether the `XEd25519` spec allows for randomisation. **(it was not there in the `ed25519`
 signature algo)**
+5. Try to use the `libcrypto` library to mimic the `libsignal` library and build a python wrapper around it 
