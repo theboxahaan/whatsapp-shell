@@ -414,7 +414,7 @@ if __name__ == "__main__":
 	client.initiate_noise_handshake()
 	srv_resp = next(client.ws.recv_frame())
 	
-	# refer to `_handleCiphertext on Line #11528
+	# refer to `_handleCiphertext` on Line #11528
 	dec = client.ws.noise_decrypt(srv_resp)
 	assert len(dec) == 588
 
@@ -524,7 +524,7 @@ if __name__ == "__main__":
 
 	# make a new client and send upto the client finish message
 	# get client payload for login @ Line #61560
-	# ref _.setMe)(i) @ Line #47800
+	# ref `_.setMe(i)` @ Line #47800
 	
 	client.reset_conn()
 	client.initiate_noise_handshake(login=True)
@@ -541,7 +541,7 @@ if __name__ == "__main__":
 
 	while True:
 		for srv_resp in client.ws.recv_frame():
-			# refer to `_handleCiphertext on Line #11528
+			# refer to `_handleCiphertext` on Line #11528
 			dec = client.ws.noise_decrypt(srv_resp)
 			parsed_dec = wap.WapDecoder(dec).decode()
 			print(parsed_dec)
