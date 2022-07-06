@@ -90,7 +90,7 @@ successful login stanza. We do get `companion_enc_static` in that stanza.
 - [ ] Replicate `libsignal-protocol`'s signing algo and see how it is diff from `DJM`
 - [ ] Retrieve Messages
 - [ ] `async`ify the `Client`
-
+- [ ] Review class design for front-end compat - initially in `ncurses` I guess.
 
 ## Notes
 1. The signature generation problem appears to be one reagrding the incompatibility of `Ed25519`
