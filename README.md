@@ -3,17 +3,17 @@
 ```bash
 $ python wshell.py
 
-****** CLIENT STATE BEG ******					
-prekey_id      : 1					
-counter        : 0					
-cryptokey      : None					
-registration_id: b'[0'					
-shared_key     : None					
-salt           : b'Noise_XX_25519_AESGCM_SHA256\x00\x00\x00\x00'					
-hash           : b'$\x07l\xa3\x81Y'...					
-static_key     : b'\xae\r"G'...; b'\x90\xfba\xf5'...					
-ephemeral_key  : b'\t &)'...;b'\xf0(\x1aP'...					
-prekey_sig     : b'\xef\x04_\xa8'...					
+****** CLIENT STATE BEG ******
+prekey_id      : 1
+counter        : 0
+cryptokey      : None
+registration_id: b'[0'
+shared_key     : None
+salt           : b'Noise_XX_25519_AESGCM_SHA256\x00\x00\x00\x00'
+hash           : b'$\x07l\xa3\x81Y'...
+static_key     : b'\xae\r"G'...; b'\x90\xfba\xf5'...
+ephemeral_key  : b'\t &)'...;b'\xf0(\x1aP'...
+prekey_sig     : b'\xef\x04_\xa8'...
 ****** CLIENT STATE END ******
 
 -> size: 43
