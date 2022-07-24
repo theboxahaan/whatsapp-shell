@@ -504,8 +504,7 @@ if __name__ == "__main__":
 	)
 
 	print(_x)
-	t = wap.WapEncoder(_x).encode()
-	_buf = b'\x00' + t
+	_buf = b'\x00' + wap.WapEncoder(_x).encode()
 
 	enc = client.ws.noise_encrypt(_buf)
 	client.ws.send_frame(payload=enc)
