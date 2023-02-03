@@ -1,0 +1,6 @@
+dissononce
+protobuf
+qrcode
+websocket-client
+# also need to install python api for curve25519
+# written at repo https://github.com/tgalal/python-axolotl-curve25519
